@@ -1,0 +1,73 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+#
+# Chặn MỌI biến thể `.env*`, chỉ chừa lại file mẫu không chứa giá trị thật.
+#
+# Liệt kê từng tên (.env, .env.production.local, ...) là cách làm nguy hiểm: nó chỉ
+# chặn đúng những tên đã nghĩ ra. `.env.production`, `.env.vps`, `.env.bak`,
+# `.env.old` — không tên nào bị chặn, và mỗi file đó đều có thể chứa
+# `SUPABASE_SECRET_KEY`. Key đó bỏ qua toàn bộ RLS, nên rò rỉ một lần là rò rỉ toàn bộ
+# sổ tài sản, giá trị tài sản và lịch sử điều chuyển của mọi cửa hàng — và xoá commit sau
+# đó KHÔNG thu hồi được key đã lộ.
+#
+# Chặn trước, chừa lại có chọn lọc.
+.env
+.env.*
+
+# Hai file mẫu này CỐ Ý được commit — chúng là tài liệu cấu hình, không chứa giá trị.
+!.env.example
+!.env.production.example
+
+# temp directory
+.temp
+.tmp
+tmp/
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

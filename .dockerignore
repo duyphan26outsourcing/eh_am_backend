@@ -1,0 +1,27 @@
+# Dockerfile chỉ COPY chọn lọc (package*.json, tsconfig*.json, nest-cli.json,
+# src/), nhưng TRƯỚC khi Dockerfile chạy, toàn bộ thư mục này vẫn bị đóng gói gửi
+# sang Docker daemon làm "build context" — file này giới hạn context đó lại cho
+# build nhanh, và để chắc chắn không có file nhạy cảm nào lọt vào theo một COPY
+# rộng tay ai đó thêm sau này.
+
+node_modules
+dist
+.git
+
+# Bí mật — không bao giờ để lọt vào build context.
+.env
+.env.*
+!.env.example
+
+# Tài liệu nặng, không cần cho build.
+business/
+docs/
+sql-docs/
+*.md
+
+# Không cần cho runtime.
+.vscode/
+test/
+tools/
+coverage/
+*.log
