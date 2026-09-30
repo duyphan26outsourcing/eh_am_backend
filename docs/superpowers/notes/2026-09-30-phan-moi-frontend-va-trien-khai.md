@@ -267,3 +267,26 @@ Mã lỗi mới sẽ thêm khi build (không phải migration): PASSWORD_CHANGE_
 1. Luồng NGỪNG (AC.2) cho cost center / phòng ban / lý do + đóng location (UC-MDM-02) — dùng nhóm CATALOG_DEACTIVATE/LOCATION_CLOSE. Cần deactivate RPC (khoá dòng + kiểm "còn dùng" + chọn lý do). Kiểm "còn dùng": location dùng cost center (được); nhân viên trong phòng ban (user_profiles.department_id — cần UC-IAM-05); tài sản (M03 chưa có → bỏ qua có ghi chú).
 2. M02 còn thiếu bảng: UC-MDM-04 (cây loại tài sản), UC-MDM-05 (nhà cung cấp), UC-MDM-06 (đơn vị sửa chữa) — **cần migration tạo BẢNG MỚI** (chưa có trong 02), thiết kế theo blueprint data model.
 3. Rồi UC-IAM-05 (thêm nhân viên) — cần migration 03 (user_profiles cột + invitations + create_employee RPC + 9-role blueprint).
+
+## Cập nhật (tiếp): luồng NGỪNG (AC.2) + UC-MDM-04 cây loại tài sản
+
+**Luồng NGỪNG danh mục (AC.2) — XONG cho cost center + lý do:**
+- Migration `02h_deactivate_rpc.sql` (đã chạy + gen:types): `deactivate_cost_center` (khoá dòng, kiểm lý do nhóm CATALOG_DEACTIVATE, kiểm "còn dùng" = còn location ACTIVE dùng làm mặc định → `CATALOG_ITEM_IN_USE`, lật INACTIVE + version+1, audit) và `deactivate_reason_code` (không kiểm in-use).
+- Mã lỗi mới `CATALOG_ITEM_IN_USE` (409). BE: `deactivateViaRpc` ở cost-center + reason-code repo/service; endpoint `POST :id/deactivate`. FE: `DeactivateCatalogDialog` dùng chung (chọn lý do nhóm CATALOG_DEACTIVATE, ô ghi thêm khi 'Khác'); nút Ngừng cạnh Sửa ở cả hai màn. reason-codes truyền `excludeReasonId`.
+- **HOÃN tới M03:** kiểm tài sản chưa kết thúc (cost center) — ghi chú trong 02h. Ngừng phòng ban (cần user_profiles.department_id/UC-IAM-05) + đóng location UC-MDM-02 (cần M03) chưa dựng.
+
+**UC-MDM-04 (cây loại tài sản) — XONG (BE code + FE):**
+- Migration `02i_asset_types.sql` (bảng `asset_types` tự tham chiếu `parent_id`, 2 cấp, CHECK level) + `02j_asset_type_rpc.sql` (create/update nhóm+loại, `deactivate_asset_type`).
+- BE: module `asset-type(s).*` `/v1/master-data/asset-types` (GET, POST groups, POST, PATCH groups/:id, PATCH :id, POST :id/deactivate). Guard ASSET_MANAGER+SYSTEM_ADMIN PLATFORM. jest 51/51.
+- **Kỹ thuật chốt:** tách RPC theo nhóm/loại + **sentinel** (`usefulLifeMonths=0`, `fastGroupCode=''` → RPC đổi NULL) để né lỗi supabase-js sinh tham số hàm non-null.
+- FE: feature `master-data/asset-types` (cây 2 cấp từ list phẳng, badge TSCĐ/CCDC + "Cần serial", tìm + công tắc hiện mục ngừng, 2 form dialog). build/typecheck/lint/vitest xanh.
+
+**Smoke/seed:** `tools/smoke-master-data.mjs` giờ seed thêm: 2 lý do CATALOG_DEACTIVATE, demo ngừng (CC-DEMO-OFF + DEMO-OFF), cây loại tài sản (IT-EQ→LAPTOP/MOUSE, FURNITURE→CHAIR). Đọc creds từ env `SMOKE_ADMIN_EMAIL`/`SMOKE_ADMIN_PASSWORD`.
+
+**⚠️ Cần xác nhận trước khi tin runtime UC-MDM-04:** chạy `02i` → `02j` → `npm run gen:types` → chạy lại smoke. (Lần smoke gần nhất phần cây loại tài sản trả 500 DATA_ACCESS_ERROR vì 02i/02j chưa chạy lúc đó; code compile được nhờ types thêm tay trong `database.types.ts`.)
+
+**Trạng thái M02:** 01 location, 03 cost center (+ngừng), 04 cây loại tài sản, 07 lý do (+ngừng), 08 phòng ban — BE+FE xong. **Chưa làm:** 02 đóng location (cần M03), 05 nhà cung cấp, 06 đơn vị sửa chữa (đều cần bảng mới).
+
+**Kế tiếp:** UC-MDM-05 (nhà cung cấp) → UC-MDM-06 (đơn vị sửa chữa) → UC-IAM-05.
+
+> Bàn giao đầy đủ cho Codex (khi hết quota Claude): xem `HANDOFF-CODEX.md` ở gốc repo backend.
