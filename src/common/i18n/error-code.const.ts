@@ -80,6 +80,10 @@ export const ErrorCode = {
   // Truy cập dữ liệu và toàn vẹn lịch sử
   // -------------------------------------------------------------------------
   DUPLICATE_RECORD: 'DUPLICATE_RECORD',
+  RECORD_VERSION_CONFLICT: 'RECORD_VERSION_CONFLICT',
+  SYSTEM_REASON_PROTECTED: 'SYSTEM_REASON_PROTECTED',
+  /** Ngừng một mục danh mục nền khi nó còn được dùng (UC-MDM-02/03/08.EX). */
+  CATALOG_ITEM_IN_USE: 'CATALOG_ITEM_IN_USE',
   REFERENCE_NOT_FOUND: 'REFERENCE_NOT_FOUND',
   REQUIRED_FIELD_MISSING: 'REQUIRED_FIELD_MISSING',
   VALUE_OUT_OF_DOMAIN: 'VALUE_OUT_OF_DOMAIN',
@@ -312,6 +316,27 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Dữ liệu này đã tồn tại. Vui lòng dùng giá trị khác.',
       en: 'This record already exists. Please use a different value.',
+    },
+  },
+  RECORD_VERSION_CONFLICT: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Bản ghi đã được người khác cập nhật. Vui lòng tải lại và thử lại.',
+      en: 'This record was updated by someone else. Please reload and try again.',
+    },
+  },
+  SYSTEM_REASON_PROTECTED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Đây là lý do hệ thống ("Khác"), không sửa hay ngừng được vì mọi nhóm đều cần nó.',
+      en: 'This is a system reason ("Other"). It cannot be edited or deactivated because every group needs it.',
+    },
+  },
+  CATALOG_ITEM_IN_USE: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Mục này vẫn đang được dùng nên chưa ngừng được. Vui lòng chuyển các bản ghi đang dùng nó sang mục khác rồi thử lại.',
+      en: 'This item is still in use, so it cannot be deactivated yet. Move the records that use it to another item, then try again.',
     },
   },
   REFERENCE_NOT_FOUND: {

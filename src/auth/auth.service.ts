@@ -337,6 +337,25 @@ export class AuthService {
       throw new AppException(ErrorCode.PROFILE_NOT_INITIALIZED);
     }
     if (profile.status !== 'ACTIVE') {
+      // ⚠️ UC-IAM-01.EX.3: thu hồi phiên vừa tạo ở Dịch vụ xác thực.
+      //
+      // `signInWithPassword` ở trên đã tạo một phiên thật tại Supabase. Token không được trả
+      // ra trình duyệt, nhưng nếu không thu hồi thì refresh token đó vẫn sống tới lúc hết hạn
+      // tự nhiên — đúng lỗ hổng mà `refreshSession` đã đóng ở nhánh tài khoản không hoạt động.
+      // Lỗi thu hồi chỉ log mức `error`, không ném: đăng nhập đã bị từ chối, không được để một
+      // lỗi phụ che mất lý do thật (ACCOUNT_INACTIVE) mà người dùng cần biết.
+      const { error: revokeError } =
+        await this.supabaseAdminService.client.auth.admin.signOut(
+          session.access_token,
+          'global',
+        );
+      if (revokeError) {
+        this.logger.error(
+          `[login] Không thu hồi được phiên của tài khoản ${profile.status}: ` +
+            `user=${user.id} lỗi="${revokeError.message}"`,
+        );
+      }
+
       throw new AppException(ErrorCode.ACCOUNT_INACTIVE, {
         status: profile.status,
       });
@@ -637,6 +656,23 @@ export class AuthService {
       throw new AppException(ErrorCode.RECOVERY_TOKEN_INVALID);
     }
 
+    // ⚠️ UC-IAM-03.EX.8 (bước 9): chỉ đặt lại mật khẩu cho tài khoản đang hoạt động. Nếu hồ sơ
+    // đã chuyển Tạm khoá/Đã ngừng giữa lúc gửi thư và đặt lại thì từ chối, không đổi mật khẩu —
+    // mã khôi phục không mở lại được đường vào cho một tài khoản đã bị chặn.
+    const { data: profile } = await this.supabaseAdminService.client
+      .from(UserProfileTableName)
+      .select('status')
+      .eq('id', payload.sub)
+      .maybeSingle();
+    if (!profile) {
+      throw new AppException(ErrorCode.PROFILE_NOT_INITIALIZED);
+    }
+    if (profile.status !== 'ACTIVE') {
+      throw new AppException(ErrorCode.ACCOUNT_INACTIVE, {
+        status: profile.status,
+      });
+    }
+
     const { error } =
       await this.supabaseAdminService.client.auth.admin.updateUserById(
         payload.sub,
@@ -695,10 +731,6 @@ export class AuthService {
   async changePassword(req: AuthRequest, dto: ChangePasswordDto) {
     const userId = req.user.sub;
 
-    if (dto.currentPassword === dto.newPassword) {
-      throw new AppException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
-    }
-
     const { data: current, error: readError } =
       await this.supabaseAdminService.client.auth.admin.getUserById(userId);
     if (readError || !current?.user?.email) {
@@ -714,6 +746,13 @@ export class AuthService {
       .auth.signInWithPassword({ email, password: dto.currentPassword });
     if (signInError) {
       throw new AppException(ErrorCode.CURRENT_PASSWORD_INCORRECT);
+    }
+
+    // ⚠️ QĐ-18 / UC-IAM-04.EX.2: chỉ báo "mật khẩu mới trùng mật khẩu hiện tại" SAU khi đã xác
+    // minh mật khẩu hiện tại, để không lộ thông tin cho người chưa chứng minh biết mật khẩu cũ.
+    // Supabase chấp nhận mật khẩu mới trùng cũ và trả thành công, làm người dùng tưởng đã đổi.
+    if (dto.currentPassword === dto.newPassword) {
+      throw new AppException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
     }
 
     const { error: updateError } =

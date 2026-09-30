@@ -13,6 +13,7 @@ import { THROTTLE_DEFAULT } from './common/constants/throttle.const';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { MasterDataModule } from './master-data/master-data.module';
 
 /**
  * ============================================================================
@@ -67,6 +68,9 @@ import { AuditModule } from './audit/audit.module';
     SupabaseModule,
     AuthModule,
     AuditModule,
+
+    // Module nghiệp vụ
+    MasterDataModule,
   ],
   controllers: [AppController],
   providers: [

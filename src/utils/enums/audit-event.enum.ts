@@ -60,6 +60,26 @@ export const AuditEvent = {
   IAM_ROLE_REVOKED: 'iam.role.revoked',
 
   // -------------------------------------------------------------------------
+  // M02 — Danh mục nền
+  // -------------------------------------------------------------------------
+  MDM_LOCATION_CREATED: 'mdm.location.created',
+  MDM_LOCATION_UPDATED: 'mdm.location.updated',
+  MDM_COST_CENTER_CREATED: 'mdm.cost_center.created',
+  MDM_COST_CENTER_UPDATED: 'mdm.cost_center.updated',
+  MDM_DEPARTMENT_CREATED: 'mdm.department.created',
+  MDM_DEPARTMENT_UPDATED: 'mdm.department.updated',
+  MDM_REASON_CODE_CREATED: 'mdm.reason_code.created',
+  MDM_REASON_CODE_UPDATED: 'mdm.reason_code.updated',
+  // Luồng NGỪNG mục danh mục (AC.2). Ngừng phòng ban + đóng location chờ bảng phụ thuộc
+  // (user_profiles.department_id / M03) nên chưa có mã ở đây.
+  MDM_COST_CENTER_DEACTIVATED: 'mdm.cost_center.deactivated',
+  MDM_REASON_CODE_DEACTIVATED: 'mdm.reason_code.deactivated',
+  // Cây loại tài sản (UC-MDM-04). Dùng chung cho cả nhóm và loại.
+  MDM_ASSET_TYPE_CREATED: 'mdm.asset_type.created',
+  MDM_ASSET_TYPE_UPDATED: 'mdm.asset_type.updated',
+  MDM_ASSET_TYPE_DEACTIVATED: 'mdm.asset_type.deactivated',
+
+  // -------------------------------------------------------------------------
   // ⏳ NGHIỆP VỤ — MÃ MẪU TẠM THỜI
   //
   // Chỉ để minh hoạ quy ước đặt tên. Danh mục thật của từng module (tài sản, QR & kiểm kê,

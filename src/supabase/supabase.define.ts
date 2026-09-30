@@ -34,6 +34,12 @@ export const SupabaseTable = {
   AUDIT_EVENTS: 'audit_events',
   CONTEXT_ROLE_ASSIGNMENTS: 'context_role_assignments',
   USER_PROFILES: 'user_profiles',
+  // Danh mục nền M02
+  COST_CENTERS: 'cost_centers',
+  DEPARTMENTS: 'departments',
+  LOCATIONS: 'locations',
+  REASON_CODES: 'reason_codes',
+  ASSET_TYPES: 'asset_types',
 } as const satisfies Record<string, PublicTableName>;
 
 // ---------------------------------------------------------------------------

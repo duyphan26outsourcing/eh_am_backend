@@ -62,7 +62,7 @@ DECLARE
   -- ========================================================================
 
   -- Email của tài khoản đã tạo bằng tay ở Authentication → Users.
-  v_admin_email          text := 'admin@everyhalf.vn';
+  v_admin_email          text := 'admintaisan@everyhalf.vn';
 
   v_admin_display_name   text := 'Quản trị hệ thống Every Half';
 
@@ -203,7 +203,7 @@ COMMIT;
 -- ⚠️ Sửa email ở dòng `WITH target AS` nếu bạn đã đổi `v_admin_email`.
 
 WITH target AS (
-  SELECT id FROM auth.users WHERE lower(email) = lower('admin@everyhalf.vn') LIMIT 1
+  SELECT id FROM auth.users WHERE lower(email) = lower('admintaisan@everyhalf.vn') LIMIT 1
 )
 SELECT '1. auth.users tồn tại' AS kiem_tra,
        CASE WHEN EXISTS (SELECT 1 FROM target) THEN 'PASS' ELSE 'FAIL' END AS ket_qua,

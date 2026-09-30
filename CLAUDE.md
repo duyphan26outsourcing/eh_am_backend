@@ -177,3 +177,24 @@ Migration 01 đã viết nhưng chưa chạy.
 - ESLint dùng bộ quy tắc có kiểm kiểu; riêng `test/` nới các quy tắc `no-unsafe-*` về member và assignment.
 - `database.types.ts` được loại khỏi lint và tsc.
 - Kiến trúc, luồng auth, xử lý lỗi và i18n kế thừa từ `Avantily/avantily_backend`. Những chỗ cố ý sửa so với bản gốc đều có comment tại chỗ (xem mục "Nguồn gốc" trong README), nên đừng "khôi phục" hành vi cũ.
+
+## Kế hoạch kỹ thuật và triển khai theo UC (`business/product-docs/product-implementation/`)
+
+Sau khi bộ use case ở `product-usecase/` được chốt, mỗi UC có một thư mục kế hoạch kỹ thuật ở `product-implementation/<Mã UC>/` (backend), song song với thư mục cùng tên bên `../eh_am_frontend/business/product-docs/product-implementation/<Mã UC>/` (frontend).
+
+Kế hoạch backend cho mỗi UC gồm: mô tả kỹ thuật, sơ đồ mermaid (luồng, sequence, trạng thái), UML data flow, bảng/RPC/migration liên quan, guard/scope/audit áp dụng, và kế hoạch test theo TDD.
+
+Thư mục UC **frontend** (`../eh_am_frontend/.../product-implementation/<Mã UC>/`) BẮT BUỘC có hai file: `README.md` (kế hoạch kỹ thuật frontend — chỉ mô tả tính năng) và `DESIGN-README.md` (mock UI / wireframe). Phải viết `DESIGN-README.md` **trước** khi code màn hình: dùng skill `frontend-design` (kèm `ui-ux-pro-max`, `taste-skill`; nếu cần skill design chưa cài thì báo Duy cài) để vẽ wireframe dạng ASCII thể hiện layout và cách bố trí component cho từng page / component lớn / dialog / form của UC, kèm token dùng, các trạng thái (tải/rỗng/lỗi/xung đột phiên), responsive/PWA và khả năng tiếp cận. Mẫu tham chiếu: `UC-MDM-01/DESIGN-README.md`.
+
+### Skill bắt buộc khi làm kế hoạch và triển khai UC (Yêu cầu 2)
+
+| Bước | Bắt buộc dùng | Để làm gì |
+| --- | --- | --- |
+| 1. Đọc UC | Đọc file UC tương ứng ở `product-usecase/` | Hiểu tính năng, luồng chính/thay thế, ngoại lệ, hậu điều kiện |
+| 2. Kế hoạch kỹ thuật | `ecc:/ecc:plan "mô tả tính năng"` rồi `ecc:tdd-workflow` | Soạn technical implementation plan (mermaid, mô tả technical, UML data flow) |
+| 2b. Thiết kế giao diện (**chỉ frontend**, BẮT BUỘC trước khi code) | `frontend-design` (+ `ui-ux-pro-max`, `taste-skill`; cần skill design chưa cài thì báo Duy cài) | Viết `DESIGN-README.md` trong thư mục UC frontend: vẽ wireframe/mock UI dạng ASCII, bố cục và cách sắp component cho từng page / component lớn / dialog / form của UC đó, kèm token, các trạng thái (tải/rỗng/lỗi/xung đột), responsive & a11y — để bước dev chỉ còn dựng theo bản đã chốt |
+| 3. Triển khai (dev flow ecc) | `ecc` dev flow: implement → review → verify → remember → improve | Viết code theo TDD (RED-GREEN); `superpowers:test-driven-development` |
+| 4. Review | `ecc:typescript-reviewer`, `ecc:database-reviewer`, `ecc:security-reviewer` khi chạm SQL/auth | Rà kiểu, truy vấn, biên bảo mật (scope location, audit) |
+| 5. Kiểm chứng | `superpowers:verification-before-completion` | Chạy `npx tsc --noEmit`, `npx eslint`, `npm test` trước khi báo xong |
+
+Nhịp làm việc (Yêu cầu 3): xong kế hoạch UC thứ nhất thì triển khai code UC đó, Duy manual test và xác nhận ổn mới sang UC kế tiếp. Không tự nhảy UC khi Duy chưa xác nhận. Đừng nhồi nhiều skill, tránh over-engineering. Không thêm module nghiệp vụ vào `app.module.ts` khi UC/đặc tả chưa được duyệt.
