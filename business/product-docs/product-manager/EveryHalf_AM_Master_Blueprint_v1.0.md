@@ -90,8 +90,8 @@ Sáu nguyên tắc thiết kế:
 2. Mỗi thay đổi lưu đủ "Ai – Khi nào – Thay đổi gì – Trước/Sau – Lý do". [Brief] B-38
 3. Người dùng chỉ thấy và thao tác tài sản của location mà họ có vai trò; quyền được kiểm ở máy chủ. [Brief] B-39
 4. EH-AM giữ dữ liệu vận hành và tài sản vật lý, FAST giữ sổ kế toán, và mỗi trường dữ liệu chỉ có một hệ làm chủ. [Brief] B-26, B-27; phần "một hệ làm chủ" là [Đề xuất]
-5. Bằng chứng lấy tại hiện trường: người quét, giờ máy chủ, ảnh chụp tại chỗ, tình trạng quan sát được. [Brief] B-13
-6. Quét trước, gõ sau. [Đề xuất]
+5. Bằng chứng lấy tại hiện trường: người quét, giờ quét và giờ máy chủ nhận, ảnh chụp tại chỗ, tình trạng quan sát được. [Brief] B-13
+6. Nhập liệu tại hiện trường mặc định bằng quét QR; ô gõ Asset ID chỉ dùng khi nhãn hỏng hoặc camera không đọc được (F-QR-05). [Đề xuất]
 
 ## 2. Tầm nhìn phát triển
 
@@ -102,18 +102,17 @@ Sáu nguyên tắc thiết kế:
 | GĐ3 · Tối ưu | Bảo trì định kỳ, cảnh báo bất thường, so sánh chi phí sửa theo dòng máy và đơn vị sửa, thông báo qua Zalo hoặc Lark, CCDC quản lý theo số lượng | GĐ1 đã chạy ổn định qua ít nhất một đợt kiểm kê toàn chuỗi |
 | Dài hạn | Dữ liệu vòng đời làm căn cứ cho quyết định mua sắm: khi nào thay máy, dòng máy nào bền, bộ tài sản chuẩn cho mỗi mô hình cửa hàng | Có dữ liệu sửa chữa và kiểm kê từ một năm vận hành trở lên |
 
-Đích đến xa hơn là mỗi khoản đầu tư vào máy móc, thiết bị của chuỗi đều truy được: đang được dùng ở đâu, tốn bao nhiêu để duy trì, và khi nào nên thay.
 
 ## 3. Mục đích của EH-AM
 
-- Một sổ tài sản số duy nhất cho cửa hàng, kho, xưởng rang và văn phòng (B-01).
-- Một mã định danh cho mỗi tài sản: Asset ID và mã QR in trên nhãn, giữ nguyên suốt vòng đời (B-03, B-10).
-- Một quy trình kiểm kê hằng tháng bằng điện thoại, bằng chứng được ghi ngay khi quét (B-11, B-13).
-- Một chuỗi lịch sử di chuyển giữa kho, cửa hàng và nơi sửa chữa (B-14).
-- Một luồng báo hỏng và sửa chữa có trạng thái, chi phí và đơn vị sửa (B-17, B-18, B-19).
-- Một luồng thanh lý có phê duyệt, sang GĐ2 thì nối với ghi giảm trên FAST (B-20).
-- Một bảng điều hành cho Ban giám đốc, Vận hành và quản lý các điểm (B-31 đến B-36).
-- Một câu trả lời trong vài giây cho câu hỏi North Star khi quét bất kỳ tài sản nào (B-40).
+- Sổ tài sản dùng chung cho cửa hàng, kho, xưởng rang và văn phòng (B-01).
+- Mỗi tài sản có Asset ID và mã QR in trên nhãn, giữ nguyên suốt vòng đời (B-03, B-10).
+- Kiểm kê hằng tháng bằng điện thoại, bằng chứng ghi ngay lúc quét (B-11, B-13).
+- Lịch sử di chuyển của từng tài sản giữa kho, cửa hàng và nơi sửa chữa (B-14).
+- Báo hỏng và sửa chữa theo phiếu, có trạng thái, chi phí và đơn vị sửa (B-17, B-18, B-19).
+- Thanh lý có phê duyệt; từ GĐ2 nối với ghi giảm trên FAST (B-20).
+- Dashboard cho Ban giám đốc, Vận hành và quản lý các điểm (B-31 đến B-36).
+- Quét bất kỳ tài sản nào cũng trả lời được câu hỏi North Star trong vài giây (B-40).
 
 ## 4. Ý nghĩa với từng bên
 
@@ -186,17 +185,30 @@ Chín nhóm người dùng, mỗi nhóm có một vai trò hệ thống, một p
 | --- | --- | --- | --- | --- | --- |
 | 1 | Ban giám đốc | `EXECUTIVE` | Toàn hệ thống | Web quản trị | Xem tổng tài sản, phân bổ theo điểm, tài sản mất và hỏng; duyệt thanh lý theo hạn mức (Q-08) |
 | 2 | Kế toán trưởng | `CHIEF_ACCOUNTANT` | Toàn hệ thống | Web quản trị | Chốt chính sách kế toán tài sản, duyệt điều chỉnh thông tin tài chính; ở GĐ2 phụ trách khấu hao và FAST |
-| 3 | Kế toán tài sản | `ASSET_ACCOUNTANT` | Toàn hệ thống | Web quản trị | Nhập và điều chỉnh nguyên giá, hoá đơn, chứng từ; ở GĐ2 liên kết mã FAST và đối soát |
+| 3 | Kế toán tài sản | `ASSET_ACCOUNTANT` | Toàn hệ thống | Web quản trị | Nhập và điều chỉnh nguyên giá, hoá đơn, chứng từ; ghi nhận thực hiện thanh lý; ở GĐ2 liên kết mã FAST và đối soát |
 | 4 | Quản lý tài sản | `ASSET_MANAGER` | Toàn hệ thống | Web quản trị, app quét | Lập hồ sơ, in nhãn, điều phối điều chuyển và sửa chữa, tổ chức đợt kiểm kê, rà kết quả |
 | 5 | Quản lý điểm | `LOCATION_MANAGER` | Các location được gán | App quét, web quản trị | Chịu trách nhiệm tài sản tại điểm; xuất và nhận hàng; duyệt kết quả kiểm kê của điểm; báo hỏng; đề nghị thanh lý |
 | 6 | Nhân viên điểm | `LOCATION_STAFF` | Một location | App quét | Quét kiểm kê, báo hỏng, tra cứu tài sản bằng QR |
 | 7 | Kỹ thuật viên | `TECHNICIAN` | Toàn hệ thống | App quét, web quản trị | Nhận yêu cầu sửa, cập nhật tiến độ, ghi kết quả sửa; chỉ có khi Every Half có đội kỹ thuật nội bộ (Q-14) |
 | 8 | Kiểm soát nội bộ | `AUDITOR` | Toàn hệ thống, chỉ đọc | Web quản trị | Tra nhật ký thay đổi theo tài sản, người, thời gian; xuất báo cáo |
-| 9 | Quản trị hệ thống | `SYSTEM_ADMIN` | Toàn hệ thống | Web quản trị | Tạo tài khoản, gán vai trò theo location, quản lý danh mục nền và cấu hình |
+| 9 | Quản trị hệ thống | `SYSTEM_ADMIN` | Toàn hệ thống | Web quản trị | Tạo tài khoản và hồ sơ nhân viên, giữ sơ đồ tổ chức đúng, gán vai trò theo location, quản lý danh mục nền và cấu hình |
 
 Quản lý điểm gồm quản lý cửa hàng, thủ kho, quản lý xưởng rang và người phụ trách văn phòng. Họ dùng chung một vai trò vì quyền của họ giống nhau và chỉ khác nhau ở loại location. Nhà cung cấp và đơn vị sửa chữa là danh mục đối tác, không có tài khoản ở GĐ1 (A-07).
 
 Code hiện có bốn mã vai trò tạm trong `role.enum.ts` (`SYSTEM_ADMIN`, `ASSET_MANAGER`, `LOCATION_MANAGER`, `LOCATION_STAFF`). Năm mã còn lại sẽ thêm vào code sau khi Every Half duyệt bảng này (Q-16, Q-17).
+
+Bảng sau nêu người đề nghị và người duyệt của từng việc cần duyệt. Người duyệt là mặc định đề xuất cho tới khi Every Half trả lời các câu hỏi ở cột cuối (A-20); mọi dòng áp BR-CMN-08, người đề nghị không tự duyệt.
+
+| Việc cần duyệt | Người đề nghị | Người duyệt mặc định | Câu hỏi còn mở |
+| --- | --- | --- | --- |
+| Huỷ hồ sơ tạo sai | Quản lý tài sản, Kế toán tài sản | Quản lý tài sản khác người đề nghị | Q-10 |
+| Điều chỉnh thông tin tài chính đã nhập | Kế toán tài sản | Kế toán trưởng | Không |
+| Phiếu điều chuyển thuộc diện cần duyệt | Quản lý điểm, Quản lý tài sản | Quản lý tài sản | Q-36 |
+| Báo giá sửa vượt ngưỡng | Quản lý tài sản | Ban giám đốc | Q-37 |
+| Kết quả kiểm kê của điểm | Nhân viên điểm, Quản lý điểm | Quản lý điểm; Quản lý tài sản khi Quản lý điểm là người kiểm (BR-STK-06) | Không |
+| Đề nghị thanh lý | Quản lý điểm, Quản lý tài sản | Ban giám đốc, theo hạn mức nguyên giá | Q-08, Q-09 |
+| Đề nghị xác nhận mất | Quản lý tài sản | Ban giám đốc | Q-08 |
+| Đề nghị khôi phục tài sản tìm thấy lại | Quản lý tài sản | Kế toán trưởng | Q-08 |
 
 ## 9. Hợp đồng thiết kế cho từng nhóm người dùng
 
@@ -240,7 +252,7 @@ Qua mọi bước, tài sản giữ nguyên Asset ID, và bản ghi của bướ
 
 # PHẦN III. Kiến trúc sản phẩm và 12 module
 
-Bản đồ sản phẩm để Product, UX, backend, frontend và QA cùng làm theo một phạm vi.
+Phần III liệt kê các module của EH-AM cùng tính năng và quy tắc của từng module; Product, UX, backend, frontend và QA dùng chung danh mục này.
 
 > **Tuyên bố thiết kế**
 > Mỗi tính năng dưới đây có một mã `F-`, mỗi quy tắc có một mã `BR-`. Use case, story và test case tham chiếu theo các mã này; một yêu cầu không có mã thì chưa nằm trong phạm vi.
@@ -303,7 +315,7 @@ Web trên máy tính cho Vận hành, Kế toán, Ban giám đốc và quản tr
 
 | Mã | Module | Mục tiêu | Người dùng chính | GĐ | Nguồn brief |
 | --- | --- | --- | --- | --- | --- |
-| M01 | Người dùng và phân quyền | Tài khoản riêng cho từng người, vai trò gán theo location, thu hồi được ngay | Quản trị hệ thống | GĐ1 | B-39 |
+| M01 | Người dùng và phân quyền | Hồ sơ nhân viên và tài khoản riêng cho từng người, sơ đồ tổ chức, vai trò gán theo location, thu hồi được ngay | Quản trị hệ thống | GĐ1 | B-39 |
 | M02 | Danh mục nền | Location, cost center, loại tài sản, nhà cung cấp, đơn vị sửa chữa, lý do dùng chung | Quản trị hệ thống, Quản lý tài sản | GĐ1 | B-01, B-05, B-07, B-18 |
 | M03 | Hồ sơ tài sản và CCDC | Hồ sơ đủ trường, trạng thái vòng đời, tình trạng vật lý, chứng từ, lịch sử | Quản lý tài sản, Kế toán tài sản | GĐ1 | B-03 đến B-09 |
 | M04 | QR và nhãn | Mã QR riêng cho từng tài sản, in nhãn, quét ra ngay thông tin | Quản lý tài sản, Nhân viên điểm | GĐ1 | B-03, B-10, B-40 |
@@ -328,8 +340,8 @@ Mỗi module có bảng tóm tắt, danh sách tính năng, quy tắc nghiệp v
 | BR-CMN-02 | Mọi thay đổi dữ liệu nghiệp vụ và phân quyền ghi một dòng nhật ký: người làm, thời điểm theo giờ máy chủ, đối tượng, giá trị trước và sau, lý do | [Brief] B-38 |
 | BR-CMN-03 | Mọi thao tác và mọi danh sách được kiểm quyền theo vai trò và phạm vi location ở máy chủ. Người không có vai trò trên một location thì không thấy dữ liệu của location đó | [Brief] B-39 |
 | BR-CMN-04 | Location của một thao tác lấy từ tài nguyên đang thao tác (tài sản, phiếu), không lấy từ thông tin điện thoại gửi lên | [Đề xuất] |
-| BR-CMN-05 | Thời điểm ghi nhận theo giờ máy chủ. Kỳ (tháng kiểm kê, kỳ khấu hao) tính theo giờ Việt Nam | [Đề xuất] |
-| BR-CMN-06 | Nguyên giá và giá trị còn lại chỉ hiện với Ban giám đốc, Kế toán trưởng, Kế toán tài sản, Quản lý tài sản, Kiểm soát nội bộ; vai trò khác thấy hồ sơ không kèm giá trị (Q-16) | [Đề xuất] |
+| BR-CMN-05 | Thời điểm ghi nhận theo giờ máy chủ. Lượt quét gửi lại từ hàng đợi trên máy lưu thêm giờ quét theo đồng hồ máy, đánh dấu chưa xác thực. Kỳ (tháng kiểm kê, kỳ khấu hao) tính theo giờ Việt Nam | [Đề xuất] |
+| BR-CMN-06 | Thông tin tài chính (nguyên giá, giá trị còn lại từ GĐ2, hoá đơn và PO, chi phí sửa, tiền thu thanh lý) chỉ hiện với Ban giám đốc, Kế toán trưởng, Kế toán tài sản, Quản lý tài sản, Kiểm soát nội bộ; vai trò khác thấy hồ sơ không kèm giá trị (Q-16) | [Đề xuất] |
 | BR-CMN-07 | Mỗi phiếu (kiểm kê, điều chuyển, sửa chữa, thanh lý) có mã riêng và trạng thái theo bảng chuyển trạng thái; trạng thái không sửa được ngoài luồng | [Đề xuất] |
 | BR-CMN-08 | Người đề nghị không tự duyệt đề nghị của chính mình | [Đề xuất] |
 | BR-CMN-09 | Lượt gửi từ điện thoại có mã chống trùng; gửi lại cùng một lượt không tạo bản ghi thứ hai | [Đề xuất] |
@@ -339,37 +351,85 @@ Mỗi module có bảng tóm tắt, danh sách tính năng, quy tắc nghiệp v
 
 | Mục | Nội dung |
 | --- | --- |
-| Mục tiêu | Mỗi người dùng có một tài khoản riêng; vai trò gán trên toàn hệ thống hoặc trên từng location, có ngày hiệu lực, thu hồi được ngay |
-| Người dùng chính | Quản trị hệ thống; mọi người dùng cho đăng nhập và mật khẩu |
+| Mục tiêu | Mỗi nhân viên có một hồ sơ và một tài khoản riêng, nằm đúng chỗ trên sơ đồ tổ chức; vai trò gán trên toàn hệ thống hoặc trên từng location, có ngày hiệu lực, thu hồi được ngay; nhân viên nghỉ việc thì mất quyền trong ngày và tài sản được giao lại |
+| Người dùng chính | Quản trị hệ thống tạo và quản lý hồ sơ nhân viên, sơ đồ tổ chức, vai trò; mọi nhân viên cho đăng nhập, mật khẩu, hồ sơ cá nhân |
 | Nguồn trong brief | B-39: phân quyền theo vai trò và theo location |
-| KPI cốt lõi | Số tài khoản còn hoạt động của người đã nghỉ việc (mục tiêu bằng không); thời gian từ khi nhân viên nghỉ tới khi tài khoản bị khoá |
+| KPI cốt lõi | Số tài khoản còn hoạt động của người đã nghỉ việc (mục tiêu bằng không); thời gian từ khi nhân viên nghỉ tới khi tài khoản bị ngừng; số nhân viên đang hoạt động chưa gắn cấp trên hoặc đơn vị công tác |
 | Giai đoạn | GĐ1. Code đã có đăng ký, xác nhận email, đăng nhập, làm mới phiên, đăng xuất một hoặc mọi thiết bị, quên, đặt lại, đổi mật khẩu, xem hồ sơ cá nhân |
-| Đầu ra kỹ thuật | Bảng `user_profiles`, `context_role_assignments` (migration 01); API `/v1/auth`, `/v1/users`, `/v1/role-assignments`; sự kiện audit `auth.*`, `iam.*`; test phân quyền cả trường hợp được phép và bị từ chối |
+| Đầu ra kỹ thuật | Bảng `user_profiles` (mở rộng thêm cột hồ sơ nhân viên), `context_role_assignments` (`migration 01`), bảng lời mời kích hoạt; API `/v1/auth`, `/v1/employees`, `/v1/org-chart`, `/v1/role-assignments`; sự kiện audit `auth.*`, `iam.*`; test phân quyền cả trường hợp được phép và bị từ chối |
+
+Cách làm của phần quản lý nhân viên lấy theo FDI Today (khảo sát ngày 30/09/2026): tạo nhân viên bằng một wizard nhiều bước nhưng chỉ gửi một lệnh ở bước cuối; hồ sơ nhân viên có các trường công việc; sơ đồ tổ chức dựng từ quan hệ cấp trên trực tiếp. EH-AM là một pháp nhân nên bỏ tầng tenant, pháp nhân và phân loại nhóm người dùng của FDI Today; đơn vị công tác là location của M02 cộng phòng ban cho văn phòng. Vai trò vẫn là 9 nhóm ở §8.
 
 | Mã | Tính năng | Mô tả | GĐ | Nguồn |
 | --- | --- | --- | --- | --- |
 | F-IAM-01 | Đăng nhập và phiên làm việc | Đăng nhập bằng email và mật khẩu; phiên tự làm mới; đăng xuất thiết bị đang dùng hoặc mọi thiết bị | GĐ1 | [Đề xuất], đã có trong code |
-| F-IAM-02 | Quản lý mật khẩu | Quên mật khẩu qua email, đặt lại bằng đường dẫn khôi phục, đổi mật khẩu khi đang đăng nhập | GĐ1 | [Đề xuất], đã có trong code |
-| F-IAM-03 | Tạo và mời tài khoản | Quản trị hệ thống tạo tài khoản cho nhân viên và gửi email kích hoạt. Đăng ký công khai hiện có trong code sẽ đóng khi D-01 được duyệt | GĐ1 | [Đề xuất] |
-| F-IAM-04 | Gán và thu hồi vai trò theo location | Gán vai trò toàn hệ thống hoặc vai trò trên từng location, có ngày bắt đầu và ngày kết thúc; thu hồi bằng cách đóng hiệu lực | GĐ1 | [Brief] B-39 |
-| F-IAM-05 | Khoá và mở khoá tài khoản | Tạm khoá hoặc ngừng tài khoản khi nhân viên nghỉ việc hay có sự cố, có lý do; mở khoá lại khi cần | GĐ1 | [Đề xuất] |
-| F-IAM-06 | Hồ sơ cá nhân và ngôn ngữ | Xem thông tin tài khoản và vai trò đang có; đổi ngôn ngữ hiển thị giữa tiếng Việt và tiếng Anh | GĐ1 | [Đề xuất], đã có một phần |
-| F-IAM-07 | Tra cứu người dùng | Danh sách người dùng, lọc theo location, vai trò, trạng thái tài khoản | GĐ1 | [Đề xuất] |
+| F-IAM-02 | Quản lý mật khẩu | Quên mật khẩu qua email, đặt lại bằng đường dẫn khôi phục, đổi mật khẩu khi đang đăng nhập; bắt đổi mật khẩu ở lần đăng nhập đầu khi tài khoản dùng mật khẩu tạm | GĐ1 | [Đề xuất], đã có trong code một phần |
+| F-IAM-03 | Tạo tài khoản nhân viên | Quản trị hệ thống thêm nhân viên qua wizard 4 bước (đơn vị công tác, thông tin cá nhân, chi tiết công việc, tài khoản và vai trò ban đầu); hệ thống tạo hồ sơ, tài khoản chờ kích hoạt, vai trò ban đầu và gửi lời mời trong một lệnh. Đăng ký công khai hiện có trong code sẽ đóng khi D-01 được duyệt | GĐ1 | [Đề xuất], theo mẫu FDI Today |
+| F-IAM-04 | Gán và thu hồi vai trò theo location | Gán vai trò toàn hệ thống hoặc vai trò trên từng location, có ngày bắt đầu và ngày kết thúc tính theo giờ Việt Nam; hiện nhãn Sắp hiệu lực, Đang hiệu lực, Đã hết hiệu lực; thu hồi bằng cách đóng hiệu lực kèm lý do | GĐ1 | [Brief] B-39 |
+| F-IAM-05 | Khoá và mở khoá tài khoản | Tạm khoá tài khoản khi có sự cố hoặc nghỉ dài, có lý do; mở khoá lại khi cần | GĐ1 | [Đề xuất] |
+| F-IAM-06 | Hồ sơ cá nhân và ngôn ngữ | Nhân viên xem hồ sơ của mình, vai trò đang có, cấp trên; đổi ngôn ngữ hiển thị giữa tiếng Việt và tiếng Anh; không tự sửa các trường nhân sự | GĐ1 | [Đề xuất], đã có một phần |
+| F-IAM-07 | Danh sách nhân viên | Danh sách nhân viên tìm theo tên, email, mã nhân viên; lọc theo location, phòng ban, vai trò, trạng thái tài khoản, loại hình làm việc | GĐ1 | [Đề xuất] |
+| F-IAM-08 | Kích hoạt tài khoản | Nhân viên mở lời mời, tự đặt mật khẩu theo BR-IAM-06; lời mời có hạn, Quản trị hệ thống gửi lại được và lời mời cũ mất hiệu lực | GĐ1 | [Đề xuất] |
+| F-IAM-09 | Hồ sơ nhân viên | Xem hồ sơ theo 4 nhóm (tóm tắt, cá nhân, công việc, vai trò); Quản trị hệ thống sửa các trường nhân sự, đổi đơn vị công tác và cấp trên; sửa đồng thời được chặn bằng khoá lạc quan | GĐ1 | [Đề xuất], theo mẫu FDI Today |
+| F-IAM-10 | Sơ đồ tổ chức | Cây nhân viên theo quan hệ cấp trên trực tiếp, gốc là Every Half; cấp hiển thị là độ sâu trên cây; tìm theo tên hoặc mã, chọn số cấp hiển thị, mở và gập từng nhánh; thẻ có trạng thái tài khoản; nhân viên chưa có cấp trên nằm ngay dưới thẻ Every Half và được đếm vào KPI "chưa gắn cấp trên". Sơ đồ chỉ để xem; di chuyển người trên cây làm bằng cách đổi cấp trên trong hồ sơ | GĐ1 | [Đề xuất], theo mẫu FDI Today |
+| F-IAM-11 | Cho nhân viên nghỉ việc | Một thao tác: ngừng tài khoản, đóng hiệu lực mọi vai trò đang mở, thu hồi phiên, chọn cấp trên mới cho cấp dưới trực tiếp, liệt kê tài sản người đó đang chịu trách nhiệm để giao lại (F-AST-05) | GĐ1 | [Đề xuất] |
+
+Tạo tài khoản nhân viên (F-IAM-03) đi qua bốn bước dưới đây. Wizard chỉ kiểm các ô của bước đang mở khi bấm "Tiếp tục", cho quay lại bước trước, và gửi một lệnh duy nhất ở bước 4; đóng wizard giữa chừng thì không có gì được lưu.
+
+| Bước | Tên bước | Thông tin nhập | Bắt buộc | Kiểm tra |
+| --- | --- | --- | --- | --- |
+| 1 | Đơn vị công tác | Location làm việc chính; phòng ban (khi location là văn phòng) | Location làm việc chính | Location đang hoạt động (BR-IAM-08); phòng ban đang hoạt động |
+| 2 | Thông tin cá nhân | Họ và tên; email công việc (cũng là tên đăng nhập); số điện thoại; ngôn ngữ hiển thị | Họ tên, email | Họ tên từ 2 ký tự; email đúng định dạng, chưa có trong hệ thống (BR-IAM-10); số điện thoại Việt Nam nếu nhập |
+| 3 | Chi tiết công việc | Mã nhân viên; chức danh; loại hình làm việc; ngày vào làm; cấp trên trực tiếp | Không ô nào | Mã nhân viên duy nhất (BR-IAM-11); cấp trên đang hoạt động (BR-IAM-12); loại hình theo danh sách Every Half chốt (Q-42) |
+| 4 | Tài khoản và vai trò ban đầu | Cách kích hoạt (mời qua email hoặc mật khẩu tạm); mật khẩu tạm và nhập lại nếu chọn cách thứ hai; vai trò ban đầu, phạm vi, hiệu lực từ, hiệu lực đến, lý do | Cách kích hoạt; lý do nếu có vai trò | Mật khẩu tạm theo BR-IAM-06; vai trò kiểm như F-IAM-04; gợi ý sẵn vai trò Nhân viên điểm tại location chính khi location là cửa hàng, kho hoặc xưởng rang |
+
+Bước 4 hiện tóm tắt cả bốn bước để Quản trị hệ thống soát trước khi bấm "Tạo tài khoản". Kết quả: hồ sơ ở trạng thái Chờ kích hoạt, dòng vai trò ban đầu, một dòng nhật ký, và email mời (hoặc thông báo cho Quản trị hệ thống đưa mật khẩu tạm cho nhân viên).
+
+Hồ sơ nhân viên (F-IAM-09) gồm các trường dưới đây và không lưu số căn cước, ngày sinh, địa chỉ nhà, ảnh chân dung; mức tối thiểu dữ liệu cá nhân cần pháp chế xác nhận theo Nghị định 13/2023/NĐ-CP và Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15.
+
+| Trường | Bắt buộc | Ràng buộc | Ai sửa |
+| --- | --- | --- | --- |
+| Email công việc | Có | Duy nhất, chữ thường, là tên đăng nhập; đổi bằng thao tác riêng có lý do | Quản trị hệ thống |
+| Họ và tên | Có | Từ 2 ký tự, giữ dấu tiếng Việt; hiện trên biên bản và lịch sử tài sản | Quản trị hệ thống |
+| Mã nhân viên | Không | Chuẩn hoá in hoa, 2 đến 30 ký tự, duy nhất | Quản trị hệ thống |
+| Số điện thoại | Không | Số Việt Nam | Quản trị hệ thống |
+| Location làm việc chính | Có | Location đang hoạt động; chỉ để hiển thị và sắp sơ đồ, không cấp quyền | Quản trị hệ thống |
+| Phòng ban | Không | Lấy từ danh mục phòng ban (F-MDM-08) | Quản trị hệ thống |
+| Chức danh | Không | Chữ tự do, chỉ hiển thị | Quản trị hệ thống |
+| Loại hình làm việc | Không | Toàn thời gian, bán thời gian, hợp đồng, thực tập, thuê ngoài; danh sách chờ Q-42 | Quản trị hệ thống |
+| Ngày vào làm | Không | Ngày theo giờ Việt Nam | Quản trị hệ thống |
+| Cấp trên trực tiếp | Không | BR-IAM-12 | Quản trị hệ thống |
+| Ngôn ngữ hiển thị | Có, mặc định tiếng Việt | Tiếng Việt hoặc tiếng Anh | Chính nhân viên, Quản trị hệ thống |
+| Trạng thái tài khoản | Hệ thống | Theo Phụ lục B.4 | Hệ thống, Quản trị hệ thống |
+| Ngày nghỉ việc, lý do | Hệ thống | Ghi khi cho nghỉ việc (F-IAM-11) | Hệ thống |
+
+Sơ đồ tổ chức (F-IAM-10) dựng lại từ dữ liệu hồ sơ mỗi lần mở. Người có cấp trên nằm dưới cấp trên; người không có cấp trên nằm ngay dưới thẻ Every Half; thẻ người hiện họ tên, chức danh, phòng ban hoặc location chính, mã nhân viên, số cấp dưới trực tiếp và nhãn Tạm khoá hoặc Chờ kích hoạt nếu có. Người đã nghỉ việc không nằm trên cây. Cấp bậc là độ sâu trên cây, không có trường cấp bậc riêng; không giới hạn số cấp, công cụ chọn số cấp chỉ để trình bày. Quan hệ báo cáo không cấp quyền (BR-IAM-13).
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-IAM-01 | Mỗi người một tài khoản; không dùng chung tài khoản giữa nhân viên (A-09) | [Đề xuất] |
-| BR-IAM-02 | Tài khoản mới chưa có vai trò nào; chưa được gán vai trò thì không thấy dữ liệu của location nào | [Đề xuất], đã có trong code |
+| BR-IAM-02 | Tài khoản mới chỉ có vai trò ban đầu được chọn ở wizard; không có vai trò thì không thấy dữ liệu của location nào | [Đề xuất], đã có trong code |
 | BR-IAM-03 | Dòng phân quyền chỉ được đóng hiệu lực, không sửa và không xoá; việc thu hồi ghi người thu hồi và lý do | [Brief] B-37 |
-| BR-IAM-04 | Tài khoản bị khoá hoặc ngừng mất quyền ngay ở thao tác kế tiếp, kể cả khi phiên đăng nhập chưa hết hạn | [Đề xuất], đã có trong code |
+| BR-IAM-04 | Tài khoản bị khoá hoặc ngừng mất quyền ngay ở thao tác kế tiếp, kể cả khi phiên đăng nhập chưa hết hạn; các phiên đang mở bị thu hồi | [Đề xuất], đã có trong code một phần |
 | BR-IAM-05 | Vai trò Quản trị hệ thống chỉ được cấp qua script khởi tạo có người chịu trách nhiệm, không cấp qua màn hình | [Đề xuất], đã có trong code |
-| BR-IAM-06 | Mật khẩu dài ít nhất 8 ký tự, có chữ, số và ký tự đặc biệt | [Đề xuất], đã có trong code |
+| BR-IAM-06 | Mật khẩu dài 8 đến 72 ký tự, có chữ, số và ký tự đặc biệt | [Đề xuất], đã có trong code |
 | BR-IAM-07 | Đăng nhập sai nhiều lần bị giới hạn tần suất; thông báo lỗi và thông báo gửi email không cho biết email có tồn tại hay không | [Đề xuất], đã có trong code |
-| BR-IAM-08 | Vai trò theo location chỉ gán được trên location đang hoạt động; người được gán vai trò Quản lý điểm trên nhiều location thấy dữ liệu của tất cả các location đó | [Đề xuất] |
+| BR-IAM-08 | Vai trò theo location và location làm việc chính chỉ chọn được location đang hoạt động; người có vai trò Quản lý điểm trên nhiều location thấy dữ liệu của tất cả các location đó | [Đề xuất] |
+| BR-IAM-09 | Tạo nhân viên là một lệnh: hồ sơ, tài khoản, vai trò ban đầu và dòng nhật ký cùng thành công hoặc cùng không có; lỗi giữa chừng thì hệ thống xoá phần đã tạo ở dịch vụ xác thực. Máy chủ kiểm riêng quyền tạo nhân viên và quyền gán từng vai trò | [Đề xuất], bài học từ FDI Today |
+| BR-IAM-10 | Email đã có trong hệ thống thì không tạo được nhân viên mới và không ghi đè hồ sơ có sẵn | [Đề xuất], bài học từ FDI Today |
+| BR-IAM-11 | Mã nhân viên nếu có thì duy nhất sau khi chuẩn hoá in hoa và bỏ khoảng trắng hai đầu | [Đề xuất], đã có trong migration 01 |
+| BR-IAM-12 | Cấp trên trực tiếp phải là nhân viên đang hoạt động, khác chính người đó và không tạo vòng trên sơ đồ | [Đề xuất] |
+| BR-IAM-13 | Sơ đồ tổ chức, chức danh, phòng ban và location làm việc chính không cấp quyền; quyền chỉ đến từ vai trò trên phạm vi (BR-CMN-03) | [Đề xuất] |
+| BR-IAM-14 | Lời mời kích hoạt dùng một lần và có thời hạn (Q-40); gửi lại thì lời mời cũ mất hiệu lực. Tài khoản dùng mật khẩu tạm phải đổi mật khẩu ở lần đăng nhập đầu trước khi làm việc khác | [Đề xuất] |
+| BR-IAM-15 | Cho nghỉ việc đóng hiệu lực mọi vai trò đang mở trong cùng thao tác, dùng chung lý do Quản trị hệ thống nhập; tài sản người đó chịu trách nhiệm phải có người nhận mới (BR-AST-09); chặn hay chỉ cảnh báo khi còn tài sản chờ Q-41 | [Đề xuất] |
+| BR-IAM-16 | Không ai tự khoá hay tự cho mình nghỉ việc; không khoá hoặc ngừng tài khoản Quản trị hệ thống cuối cùng đang hoạt động | [Đề xuất], bài học từ FDI Today |
+| BR-IAM-17 | Sửa hồ sơ nhân viên dùng khoá lạc quan: người sửa sau trên bản cũ phải tải lại hồ sơ; nhật ký chỉ ghi các trường đổi, trước và sau | [Đề xuất] |
 
-Trạng thái tài khoản: Đang hoạt động, Tạm khoá, Đã ngừng (mã ở Phụ lục B).
+Trạng thái tài khoản: Chờ kích hoạt, Đang hoạt động, Tạm khoá, Đã ngừng (mã ở Phụ lục B). Chờ kích hoạt chỉ sang Đang hoạt động khi nhân viên kích hoạt qua lời mời, hoặc đổi mật khẩu tạm ở lần đăng nhập đầu (lần đăng nhập đó chỉ dùng để đổi mật khẩu); Đã ngừng là trạng thái kết thúc, nhân viên quay lại làm thì tạo hồ sơ mới hoặc mở lại có duyệt (Q-41).
 
-Ngoài phạm vi: đăng nhập một lần qua hệ thống của Every Half (SSO) thuộc GĐ3; xác thực hai lớp cân nhắc cho vai trò duyệt thanh lý ở GĐ3.
+Những điểm FDI Today có mà EH-AM cố ý làm khác: quản trị viên không tự đặt và biết mật khẩu của nhân viên, trừ mật khẩu tạm phải đổi ngay (D-11); thu hồi vai trò đóng hiệu lực chứ không xoá dòng; khoá tài khoản có lý do và thu hồi phiên; danh sách chọn cấp trên và người được gán vai trò chỉ gồm người đang hoạt động; phòng ban là danh mục chứ không phải chữ tự do.
+
+Ngoài phạm vi: đăng nhập một lần qua hệ thống của Every Half (SSO) thuộc GĐ3; xác thực hai lớp cân nhắc cho vai trò duyệt thanh lý ở GĐ3; nhập danh sách nhân viên từ file thuộc GĐ2; đồng bộ với phần mềm nhân sự thuộc GĐ3.
 
 ### 14.2. M02: Danh mục nền
 
@@ -391,15 +451,17 @@ Ngoài phạm vi: đăng nhập một lần qua hệ thống của Every Half (S
 | F-MDM-05 | Quản lý nhà cung cấp | Danh mục nhà cung cấp tài sản: tên, mã số thuế, người liên hệ | GĐ1 | [Brief] B-05 |
 | F-MDM-06 | Quản lý đơn vị sửa chữa | Danh mục đơn vị sửa chữa và bảo hành: tên, liên hệ, loại dịch vụ; mỗi đơn vị gắn với một location loại "bên ngoài" để tài sản được điều chuyển tới (D-02) | GĐ1 | [Brief] B-18 |
 | F-MDM-07 | Quản lý danh mục lý do | Danh sách lý do chuẩn cho điều chỉnh hồ sơ, điều chuyển, thanh lý, khoá tài khoản, in lại nhãn | GĐ1 | [Đề xuất] |
+| F-MDM-08 | Quản lý danh mục phòng ban | Danh sách phòng ban của khối văn phòng (ví dụ vận hành, kế toán, nhân sự, IT; danh sách thật chờ Q-42): mã, tên, trưởng phòng; dùng cho hồ sơ nhân viên và sơ đồ tổ chức ở M01 | GĐ1 | [Đề xuất], theo mẫu FDI Today |
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-MDM-01 | Mã location, mã cost center, mã loại tài sản là duy nhất và không dùng lại sau khi ngừng | [Đề xuất] |
 | BR-MDM-02 | Danh mục chỉ ngừng hoạt động, không xoá; mục đã ngừng vẫn hiện đúng tên trong lịch sử cũ | [Brief] B-37 |
-| BR-MDM-03 | Location chỉ đóng được khi không còn tài sản ở trạng thái đang ghi tại đó và không còn phiếu kiểm kê, điều chuyển, sửa chữa đang mở | [Đề xuất] |
+| BR-MDM-03 | Location chỉ đóng được khi không còn tài sản chưa ở trạng thái kết thúc (kể cả Nghi mất) ghi tại đó và không còn phiếu kiểm kê, điều chuyển, sửa chữa đang mở | [Đề xuất] |
 | BR-MDM-04 | Mỗi location có đúng một cost center mặc định; tài sản chuyển tới location nhận cost center của location đó, trừ khi tài sản có cost center riêng do Kế toán tài sản đặt (A-08) | [Đề xuất] |
 | BR-MDM-05 | Tài sản đang ở location bên ngoài không thuộc đợt kiểm kê của điểm nào; người chịu trách nhiệm trong thời gian đó là Quản lý tài sản | [Đề xuất] |
 | BR-MDM-06 | Loại tài sản đã có tài sản gắn vào thì không đổi được cờ TSCĐ hoặc CCDC; muốn đổi thì tạo loại mới và chuyển từng tài sản có lý do | [Đề xuất] |
+| BR-MDM-07 | Phòng ban còn nhân viên đang hoạt động thì không ngừng được; trưởng phòng phải là nhân viên đang hoạt động | [Đề xuất] |
 
 Ngoài phạm vi: cấp vùng hoặc khu vực trên location chờ câu trả lời Q-17; nếu có, thêm một cấp nhóm location mà không đổi cách gán vai trò.
 
@@ -419,46 +481,55 @@ Ngoài phạm vi: cấp vùng hoặc khu vực trên location chờ câu trả l
 | F-AST-01 | Tạo hồ sơ tài sản | Nhập thông tin mô tả (tên, loại, serial, ảnh), thông tin mua (ngày mua, nhà cung cấp, số hoá đơn hoặc PO), vị trí ban đầu (location, người chịu trách nhiệm); hệ thống cấp Asset ID | GĐ1 | [Brief] B-03, B-04, B-05, B-07 |
 | F-AST-02 | Nhập danh sách tài sản từ file | Tải file Excel theo mẫu, hệ thống kiểm từng dòng, cho xem trước, nhập các dòng hợp lệ và trả báo cáo dòng lỗi | GĐ1 | [Đề xuất], phục vụ chuyển đổi dữ liệu ở §35 |
 | F-AST-03 | Cập nhật thông tin mô tả | Sửa tên, loại, serial, ảnh, ghi chú; không sửa location ở đây | GĐ1 | [Brief] B-04 |
-| F-AST-04 | Cập nhật thông tin tài chính | Nhập hoặc điều chỉnh nguyên giá, ngày bắt đầu sử dụng, thời gian sử dụng, cost center riêng; bắt buộc lý do và chứng từ | GĐ1 | [Brief] B-06 |
+| F-AST-04 | Cập nhật thông tin tài chính | Nhập hoặc điều chỉnh nguyên giá, ngày bắt đầu sử dụng, thời gian sử dụng, cost center riêng; bắt buộc lý do và chứng từ; điều chỉnh giá trị đã nhập cần Kế toán trưởng duyệt (BR-AST-12) | GĐ1 | [Brief] B-06 |
 | F-AST-05 | Đổi người chịu trách nhiệm | Chuyển trách nhiệm tài sản cho người khác trong cùng location, có lý do | GĐ1 | [Brief] B-07 |
 | F-AST-06 | Đính kèm chứng từ | Tải lên hoá đơn, PO, biên bản bàn giao, phiếu bảo hành, ảnh; xem và tải về theo quyền | GĐ1 | [Brief] B-08 |
 | F-AST-07 | Tra cứu và lọc tài sản | Danh sách trong phạm vi location của người dùng; tìm theo tên, Asset ID, serial; lọc theo loại, trạng thái, tình trạng, location | GĐ1 | [Brief] B-02 |
 | F-AST-08 | Xem hồ sơ và dòng thời gian | Hồ sơ đầy đủ theo quyền, kèm dòng thời gian mọi sự kiện: tạo, dán nhãn, điều chuyển, kiểm kê, sửa chữa, thay đổi dữ liệu | GĐ1 | [Brief] B-02, B-40 |
-| F-AST-09 | Huỷ hồ sơ tạo sai | Đưa hồ sơ tạo nhầm hoặc trùng sang trạng thái Hủy, có lý do và người duyệt; hồ sơ vẫn còn trong lịch sử | GĐ1 | [Brief] B-09 |
+| F-AST-09 | Huỷ hồ sơ tạo sai | Đưa hồ sơ tạo nhầm hoặc trùng sang trạng thái Hủy, có lý do và người duyệt khác người đề nghị; chỉ áp cho tài sản Lưu kho hoặc Đang sử dụng không có phiếu mở; hồ sơ vẫn còn trong lịch sử | GĐ1 | [Brief] B-09 |
 | F-AST-10 | Xuất danh sách tài sản | Xuất Excel theo bộ lọc; file chỉ có các cột người xuất được xem | GĐ1 | [Đề xuất] |
+| F-AST-11 | Đưa vào hoặc ngừng sử dụng | Chuyển tài sản giữa Lưu kho và Đang sử dụng tại cùng một location, có lý do; location không đổi | GĐ1 | [Brief] B-09 |
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-AST-01 | Asset ID do hệ thống cấp, duy nhất, không đổi và không dùng lại, kể cả sau khi tài sản thanh lý | [Brief] B-03 |
 | BR-AST-02 | Trường bắt buộc khi tạo: tên, loại, location, người chịu trách nhiệm, trạng thái ban đầu (Lưu kho hoặc Đang sử dụng); serial bắt buộc với loại có cờ "bắt buộc serial" | [Đề xuất] |
-| BR-AST-03 | Serial không được trùng trong cùng một loại tài sản | [Đề xuất] |
+| BR-AST-03 | Serial không được trùng trong cùng một loại tài sản; hồ sơ Hủy không tính | [Đề xuất] |
 | BR-AST-04 | Location của tài sản chỉ đổi qua điều chuyển có xác nhận nhận hàng; màn hình sửa hồ sơ không có trường location | [Brief] B-14, B-15 |
 | BR-AST-05 | Thông tin tài chính chỉ Kế toán tài sản sửa, bắt buộc lý do; mỗi lần sửa lưu giá trị trước và sau | [Brief] B-06, B-38 |
-| BR-AST-06 | Trạng thái chỉ đổi theo bảng chuyển trạng thái dưới đây; đổi tay chỉ có một trường hợp là huỷ hồ sơ tạo sai, cần Quản lý tài sản duyệt (Q-10) | [Brief] B-09 |
+| BR-AST-06 | Trạng thái chỉ đổi theo bảng chuyển trạng thái dưới đây; đổi tay chỉ có hai trường hợp: đưa vào hoặc ngừng sử dụng (F-AST-11), và huỷ hồ sơ tạo sai, cần một Quản lý tài sản khác người đề nghị duyệt (Q-10, BR-CMN-08) | [Brief] B-09 |
 | BR-AST-07 | Tài sản ở trạng thái kết thúc (Đã thanh lý, Mất, Hủy) chỉ được xem; ngoại lệ duy nhất là luồng tìm thấy lại tài sản đã mất ở M08 | [Đề xuất] |
 | BR-AST-08 | Nhập từ file: dòng lỗi không được nhập; các dòng hợp lệ được nhập, báo cáo liệt kê từng dòng bị bỏ và lý do | [Đề xuất] |
-| BR-AST-09 | Người chịu trách nhiệm phải có vai trò trên location của tài sản | [Đề xuất] |
-| BR-AST-10 | Tình trạng vật lý (Tốt, Hư hỏng nhẹ, Hư hỏng) tách khỏi trạng thái vòng đời; kiểm kê và sửa chữa cập nhật tình trạng mà không đổi trạng thái (D-06) | [Đề xuất] |
+| BR-AST-09 | Người chịu trách nhiệm phải có vai trò trên location của tài sản; tài sản ở location bên ngoài do Quản lý tài sản chịu trách nhiệm (BR-MDM-05) | [Đề xuất] |
+| BR-AST-10 | Tình trạng vật lý (Tốt, Hư hỏng nhẹ, Hư hỏng) tách khỏi trạng thái vòng đời; tình trạng đổi khi người chịu trách nhiệm quan sát và ghi nhận: kiểm kê, nhận hàng điều chuyển, tiếp nhận sửa, nghiệm thu; báo hỏng một mình không đổi tình trạng; các lần đổi này không đổi trạng thái (D-06) | [Đề xuất] |
+| BR-AST-11 | CCDC chỉ bắt buộc lập hồ sơ từng chiếc khi đạt ngưỡng giá trị hoặc thuộc loại Every Half chọn (Q-03); CCDC dưới ngưỡng không có hồ sơ ở GĐ1 | [Brief] B-01 |
+| BR-AST-12 | Nhập thông tin tài chính lần đầu không cần duyệt; điều chỉnh giá trị đã nhập cần Kế toán trưởng duyệt trước khi có hiệu lực, người điều chỉnh không tự duyệt | [Đề xuất] |
 
 Trạng thái và chuyển trạng thái (mã ở Phụ lục B):
 
 | Từ trạng thái | Sang trạng thái | Luồng |
 | --- | --- | --- |
 | Hồ sơ mới | Lưu kho hoặc Đang sử dụng | Tạo hồ sơ hoặc nhập từ file (M03) |
-| Lưu kho, Đang sử dụng | Chờ điều chuyển | Tạo phiếu điều chuyển (M06) |
+| Lưu kho | Đang sử dụng | Đưa vào sử dụng, có lý do (F-AST-11) |
+| Đang sử dụng | Lưu kho | Ngừng sử dụng, có lý do (F-AST-11) |
+| Lưu kho, Đang sử dụng | Chờ điều chuyển | Thêm vào phiếu điều chuyển, kể cả phiếu Nháp (M06) |
 | Chờ điều chuyển | Đang vận chuyển | Xuất giao (M06) |
-| Chờ điều chuyển | Trạng thái trước đó | Huỷ phiếu điều chuyển (M06) |
-| Đang vận chuyển | Lưu kho, Đang sử dụng, Đang sửa chữa | Bên nhận xác nhận; tới đơn vị sửa chữa thì thành Đang sửa chữa (M06) |
-| Lưu kho, Đang sử dụng | Đang sửa chữa | Tiếp nhận yêu cầu sửa tại chỗ (M07) |
-| Đang sửa chữa | Lưu kho, Đang sử dụng | Nghiệm thu sau sửa (M07) |
-| Lưu kho, Đang sử dụng | Nghi mất | Duyệt kết quả kiểm kê có tài sản không tìm thấy (M05) |
-| Nghi mất | Lưu kho, Đang sử dụng | Tìm thấy khi xác minh (M05) |
+| Chờ điều chuyển | Trạng thái trước đó | Huỷ phiếu hoặc bỏ tài sản khỏi phiếu (M06) |
+| Chờ điều chuyển | Lưu kho, Đang sử dụng | Điểm nhận xác nhận phiếu điều chuyển điều chỉnh, không có bước xuất giao (BR-TRF-09) |
+| Đang vận chuyển | Lưu kho hoặc Đang sử dụng | Bên nhận xác nhận; mặc định kho là Lưu kho, location khác là Đang sử dụng, người nhận đổi được (M06) |
+| Đang vận chuyển | Nghi mất | Quản lý tài sản kết luận tài sản không tới, location vẫn là điểm gửi (F-TRF-05) |
+| Lưu kho, Đang sử dụng | Đang sửa chữa | Tiếp nhận yêu cầu sửa, sửa tại chỗ hay gửi ra ngoài; phiếu sửa lưu trạng thái trước khi sửa (M07) |
+| Đang sửa chữa | Đang sửa chữa | Gửi đi sửa và nhận về: chỉ location đổi khi bên nhận xác nhận, cost center giữ nguyên (BR-TRF-03) |
+| Đang sửa chữa | Trạng thái trước khi sửa | Nghiệm thu sau sửa (M07) |
+| Lưu kho, Đang sử dụng, Chờ điều chuyển, Chờ thanh lý, Đang sửa chữa tại chỗ | Nghi mất | Duyệt kết quả kiểm kê có tài sản không tìm thấy, trừ trường hợp BR-STK-09; phiếu đang mở của tài sản xử lý theo BR-STK-19 (M05) |
+| Lưu kho, Đang sử dụng, Đang sửa chữa | Nghi mất | Báo mất đột xuất (F-DSP-05) |
+| Nghi mất | Trạng thái trước đó | Tìm thấy khi xác minh; tìm thấy ở nơi khác thì kèm điều chuyển điều chỉnh (F-STK-09) |
 | Nghi mất | Mất | Duyệt xác nhận mất (M08) |
 | Lưu kho, Đang sử dụng, Đang sửa chữa | Chờ thanh lý | Duyệt đề nghị thanh lý (M08) |
 | Chờ thanh lý | Đã thanh lý | Thực hiện thanh lý (M08) |
 | Chờ thanh lý | Trạng thái trước đó | Huỷ đề nghị thanh lý (M08) |
-| Mất | Đang sử dụng | Duyệt tìm thấy lại (M08) |
-| Mọi trạng thái trừ Đã thanh lý, Mất | Hủy | Huỷ hồ sơ tạo sai, có duyệt (M03) |
+| Mất | Lưu kho hoặc Đang sử dụng | Duyệt khôi phục tài sản tìm thấy lại, tại location theo sổ (F-DSP-06) |
+| Lưu kho, Đang sử dụng | Hủy | Huỷ hồ sơ tạo sai khi không có phiếu mở, có duyệt (M03) |
 
 Ngoài phạm vi: CCDC quản lý theo số lượng thay vì từng chiếc chờ Q-28 và thuộc GĐ3; tài sản cấu thành từ nhiều phần (máy và bộ phụ kiện) quản lý thành các hồ sơ riêng có ghi chú liên kết, không có quan hệ cha con ở GĐ1.
 
@@ -478,8 +549,8 @@ Ngoài phạm vi: CCDC quản lý theo số lượng thay vì từng chiếc ch�
 | F-QR-01 | Sinh mã QR | Hệ thống sinh mã QR ngay khi hồ sơ được tạo; nội dung QR là đường dẫn tra cứu chứa Asset ID | GĐ1 | [Brief] B-10 |
 | F-QR-02 | In nhãn theo lô | Chọn tài sản theo location, loại hoặc lần nhập; xuất file in nhãn theo khổ nhãn đã cấu hình; ghi nhận lô in | GĐ1 | [Đề xuất] |
 | F-QR-03 | Xác nhận dán nhãn | Người dán quét nhãn vừa dán để xác nhận đúng tài sản; hồ sơ ghi đã dán nhãn, người dán, thời điểm | GĐ1 | [Đề xuất] |
-| F-QR-04 | Quét QR tra cứu tài sản | Quét bằng camera điện thoại; hiện tài sản là gì, ở đâu, ai chịu trách nhiệm, tình trạng, lịch sử gần nhất; giá trị chỉ hiện với vai trò được xem | GĐ1 | [Brief] B-40 |
-| F-QR-05 | Nhập mã thay cho quét | Gõ Asset ID khi nhãn mờ hoặc camera không đọc được | GĐ1 | [Đề xuất] |
+| F-QR-04 | Quét QR tra cứu tài sản | Quét bằng camera điện thoại; hiện tài sản là gì, ở đâu, ai chịu trách nhiệm, tình trạng, lịch sử gần nhất; nguyên giá chỉ hiện với vai trò được xem (BR-CMN-06), giá trị còn lại có từ GĐ2 | GĐ1 | [Brief] B-40 |
+| F-QR-05 | Nhập mã thay cho quét | Gõ Asset ID khi nhãn mờ hoặc camera không đọc được; lượt nhập tay được đánh dấu riêng (BR-STK-11) | GĐ1 | [Đề xuất] |
 | F-QR-06 | In lại nhãn | Nhãn hỏng hoặc mất thì in lại cùng mã QR, bắt buộc lý do | GĐ1 | [Đề xuất] |
 
 | Mã | Quy tắc | Nguồn |
@@ -508,25 +579,30 @@ Ngoài phạm vi: nhãn RFID hoặc NFC; in nhãn trực tiếp từ trình duy�
 | --- | --- | --- | --- | --- |
 | F-STK-01 | Lập đợt kiểm kê | Tạo đợt kiểm kê cho các location, đặt hạn, phân công người kiểm; lúc mở đợt, hệ thống chốt danh sách tài sản dự kiến của từng location | GĐ1 | [Brief] B-11 |
 | F-STK-02 | Mở đợt và nhắc hạn tự động | Hệ thống tự mở đợt theo lịch tháng nếu được cấu hình, và nhắc người được phân công trước hạn | GĐ1 | [Đề xuất] |
-| F-STK-03 | Quét kiểm kê tại điểm | Nhân viên quét từng tài sản và chọn kết quả: có mặt, hư hỏng, sai vị trí; chụp ảnh; hệ thống ghi người quét, giờ máy chủ, toạ độ nếu được bật | GĐ1 | [Brief] B-12, B-13 |
+| F-STK-03 | Quét kiểm kê tại điểm | Nhân viên quét từng tài sản và chọn kết quả (có mặt, hư hỏng, sai vị trí) và tình trạng vật lý (Tốt, Hư hỏng nhẹ, Hư hỏng); chụp ảnh; hệ thống ghi người quét, giờ quét trên máy, giờ máy chủ nhận, cách nhận diện (quét hay nhập mã), toạ độ nếu được bật | GĐ1 | [Brief] B-12, B-13 |
 | F-STK-04 | Ghi nhận tài sản lạ | Quét được tài sản đang ghi ở location khác, hoặc thấy tài sản chưa có nhãn: ghi nhận kèm ảnh để xử lý sau | GĐ1 | [Brief] B-12 |
 | F-STK-05 | Chốt kết quả kiểm kê của điểm | Người kiểm gửi kết quả; tài sản trong danh sách mà chưa được quét được đánh dấu "không tìm thấy" | GĐ1 | [Brief] B-12 |
-| F-STK-06 | Duyệt kết quả kiểm kê | Người duyệt rà kết quả của điểm, duyệt hoặc yêu cầu kiểm lại; khi duyệt, tài sản không tìm thấy chuyển "Nghi mất" | GĐ1 | [Đề xuất] |
-| F-STK-07 | Xử lý chênh lệch | Quản lý tài sản xử lý từng chênh lệch: sai vị trí thì lập điều chuyển điều chỉnh; nghi mất thì xác minh, tìm thấy hoặc đề nghị xác nhận mất; hư hỏng thì báo hỏng | GĐ1 | [Đề xuất] |
+| F-STK-06 | Duyệt kết quả kiểm kê | Người duyệt rà kết quả của điểm, duyệt hoặc yêu cầu kiểm lại; khi duyệt, tài sản không tìm thấy chuyển "Nghi mất", trừ tài sản cùng đợt đã được điểm khác ghi sai vị trí (BR-STK-09) | GĐ1 | [Đề xuất] |
+| F-STK-07 | Xử lý chênh lệch | Quản lý tài sản xử lý chênh lệch sai vị trí (lập điều chuyển điều chỉnh, BR-TRF-09), hư hỏng (báo hỏng sang M07) và tài sản lạ chưa có hồ sơ (lập hồ sơ ở M03); tài sản Nghi mất xử lý ở F-STK-09 | GĐ1 | [Đề xuất] |
+| F-STK-09 | Xác minh tài sản nghi mất | Quản lý tài sản ghi kết quả xác minh từng tài sản Nghi mất (nơi đã tìm, người đã hỏi, ảnh) trong hạn BR-STK-07; tìm thấy thì tài sản trở lại trạng thái trước; không tìm thấy thì lập đề nghị xác nhận mất (F-DSP-05) | GĐ1 | [Brief] B-12 |
 | F-STK-08 | Báo cáo kiểm kê | Kết quả đợt theo điểm: số dự kiến, đã quét, có mặt, hư hỏng, sai vị trí, không tìm thấy; tiến độ cập nhật theo từng lượt quét | GĐ1 | [Brief] B-35 |
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-STK-01 | Mỗi location có một đợt kiểm kê mỗi tháng (A-05, Q-12) | [Brief] B-11 |
-| BR-STK-02 | Danh sách dự kiến của điểm được chốt lúc mở đợt: tài sản đang ghi ở location đó, trừ tài sản đang vận chuyển, đang ở location bên ngoài, hoặc ở trạng thái kết thúc | [Đề xuất] |
+| BR-STK-02 | Danh sách dự kiến của điểm được chốt lúc mở đợt: tài sản đang ghi ở location đó ở trạng thái Lưu kho, Đang sử dụng, Chờ điều chuyển, Chờ thanh lý, Nghi mất, hoặc Đang sửa chữa tại chỗ; không gồm tài sản đang vận chuyển, đang ở location bên ngoài, hoặc ở trạng thái kết thúc. Tài sản tới điểm giữa đợt được ghi là tài sản lạ | [Đề xuất] |
 | BR-STK-03 | Mỗi tài sản trong một đợt có đúng một kết quả; quét lại thì kết quả sau thay kết quả trước, cả hai lượt quét đều được lưu | [Đề xuất] |
 | BR-STK-04 | Kết quả "có mặt" và "hư hỏng" cần ảnh chụp bằng camera ngay lúc quét (Q-31) | [Brief] B-13 |
 | BR-STK-05 | Toạ độ chỉ ghi khi Every Half bật tính năng và người dùng cho phép; thiếu toạ độ không chặn việc kiểm kê (Q-20) | [Brief] B-13 |
 | BR-STK-06 | Kết quả của điểm do Quản lý điểm duyệt; nếu Quản lý điểm cũng là người kiểm thì Quản lý tài sản duyệt | [Đề xuất] |
 | BR-STK-07 | Tài sản "Nghi mất" phải có kết luận (tìm thấy hoặc đề nghị xác nhận mất) trong thời hạn Every Half đặt (Q-13) | [Đề xuất] |
 | BR-STK-08 | Đợt đã duyệt thì khoá kết quả; phát hiện sai sau đó xử lý bằng thao tác mới có lý do, không sửa kết quả cũ | [Brief] B-37 |
+| BR-STK-09 | Khi duyệt một điểm, tài sản không tìm thấy ở điểm đó mà cùng đợt đã được điểm khác ghi sai vị trí thì thành chênh lệch sai vị trí, không chuyển Nghi mất | [Đề xuất] |
+| BR-STK-10 | Lượt quét từ hàng đợi trên máy tới sau khi điểm đã chốt thì bị từ chối kèm mã lỗi; app báo người quét để Quản lý điểm yêu cầu kiểm lại nếu cần | [Đề xuất] |
+| BR-STK-11 | Lượt nhập Asset ID bằng tay được đánh dấu riêng và vẫn cần ảnh như lượt quét (BR-STK-04); báo cáo kiểm kê có tỷ lệ nhập tay theo điểm | [Đề xuất] |
+| BR-STK-19 | Tài sản không tìm thấy khi duyệt mà đang Chờ điều chuyển, Chờ thanh lý hoặc Đang sửa chữa tại chỗ vẫn chuyển Nghi mất; tài sản được bỏ khỏi phiếu điều chuyển chưa xuất, đề nghị thanh lý chưa thực hiện bị huỷ, phiếu sửa giữ nguyên kèm ghi chú; mỗi việc có dòng nhật ký | [Đề xuất], từ bộ UC |
 
-Trạng thái của một điểm trong đợt: Chưa bắt đầu, Đang kiểm, Đã chốt, Yêu cầu kiểm lại, Đã duyệt (mã ở Phụ lục B).
+Trạng thái của đợt: Nháp, Đang mở, Đã đóng, Đã huỷ. Trạng thái của một điểm trong đợt: Chưa bắt đầu, Đang kiểm, Đã chốt, Yêu cầu kiểm lại, Đã duyệt (mã ở Phụ lục B).
 
 ### 14.6. M06: Điều chuyển
 
@@ -541,24 +617,26 @@ Trạng thái của một điểm trong đợt: Chưa bắt đầu, Đang kiểm
 
 | Mã | Tính năng | Mô tả | GĐ | Nguồn |
 | --- | --- | --- | --- | --- |
-| F-TRF-01 | Tạo phiếu điều chuyển | Chọn tài sản bằng quét hoặc từ danh sách, chọn điểm gửi, điểm nhận (kể cả đơn vị sửa chữa), lý do, ngày dự kiến | GĐ1 | [Brief] B-14 |
+| F-TRF-01 | Tạo phiếu điều chuyển | Chọn tài sản bằng quét hoặc từ danh sách, chọn điểm gửi, điểm nhận (kể cả đơn vị sửa chữa), lý do, ngày dự kiến; tài sản vào trạng thái Chờ điều chuyển ngay khi được thêm vào phiếu, kể cả phiếu Nháp | GĐ1 | [Brief] B-14 |
 | F-TRF-02 | Duyệt phiếu điều chuyển | Phiếu cần duyệt trước khi xuất khi thoả điều kiện Every Half đặt, ví dụ khác cost center hoặc tài sản giá trị cao (Q-36) | GĐ1 | [Đề xuất] |
 | F-TRF-03 | Xuất giao tài sản | Điểm gửi quét từng tài sản khi giao cho người vận chuyển; tài sản chuyển "Đang vận chuyển" | GĐ1 | [Đề xuất] |
-| F-TRF-04 | Xác nhận đã nhận hàng bằng QR | Điểm nhận quét từng tài sản để xác nhận; tài sản đổi location và cost center theo điểm nhận | GĐ1 | [Brief] B-15 |
-| F-TRF-05 | Xử lý nhận thiếu, nhận hỏng | Ghi nhận tài sản không tới hoặc tới trong tình trạng hỏng; tài sản không tới được đưa vào xác minh, tài sản hỏng được báo hỏng | GĐ1 | [Đề xuất] |
+| F-TRF-04 | Xác nhận đã nhận hàng bằng QR | Điểm nhận quét từng tài sản để xác nhận; tài sản đổi location và cost center theo điểm nhận (BR-TRF-02); người nhận chọn người chịu trách nhiệm mới và trạng thái Lưu kho hoặc Đang sử dụng (kho mặc định Lưu kho) | GĐ1 | [Brief] B-15 |
+| F-TRF-05 | Xử lý tài sản nhận thiếu | Điểm nhận đánh dấu tài sản không tới khi hoàn tất nhận; Quản lý tài sản xác minh với điểm gửi: tìm thấy thì điểm nhận quét nhận tiếp, không tìm thấy thì tài sản thành Nghi mất tại location điểm gửi và áp hạn BR-STK-07; phiếu thành Đã nhận khi mọi tài sản có kết luận | GĐ1 | [Đề xuất] |
+| F-TRF-08 | Ghi nhận tài sản nhận hỏng | Điểm nhận vẫn nhận tài sản tới trong tình trạng hỏng, ghi tình trạng và ảnh; hệ thống tạo yêu cầu sửa chữa (F-MNT-01) và báo điểm gửi | GĐ1 | [Đề xuất] |
 | F-TRF-06 | Huỷ phiếu điều chuyển | Huỷ phiếu chưa xuất, có lý do; tài sản trở lại trạng thái trước | GĐ1 | [Đề xuất] |
 | F-TRF-07 | Theo dõi phiếu và lịch sử điều chuyển | Danh sách phiếu theo trạng thái, cảnh báo quá hạn nhận; lịch sử di chuyển của từng tài sản | GĐ1 | [Brief] B-14 |
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-TRF-01 | Tài sản chỉ đổi location qua phiếu điều chuyển | [Brief] B-14 |
-| BR-TRF-02 | Location và cost center đổi tại thời điểm bên nhận xác nhận, không đổi lúc tạo phiếu hay lúc xuất | [Brief] B-15 |
-| BR-TRF-03 | Phiếu điều chuyển thường chỉ nhận tài sản đang ở trạng thái Lưu kho hoặc Đang sử dụng; tài sản đang sửa chỉ đi theo phiếu gửi sửa hoặc nhận về từ sửa do M07 tạo | [Đề xuất] |
-| BR-TRF-04 | Một tài sản chỉ nằm trong một phiếu điều chuyển đang mở tại một thời điểm | [Đề xuất] |
+| BR-TRF-02 | Location và cost center đổi tại thời điểm bên nhận xác nhận, không đổi lúc tạo phiếu hay lúc xuất. Tài sản có cost center riêng do Kế toán tài sản đặt thì giữ cost center đó (BR-MDM-04); điểm nhận là location bên ngoài thì cost center giữ nguyên; mỗi lần cost center đổi, Kế toán tài sản nhận thông báo | [Brief] B-15 |
+| BR-TRF-03 | Phiếu điều chuyển do người dùng tạo chỉ nhận tài sản Lưu kho hoặc Đang sử dụng. Ngoại lệ duy nhất là phiếu gửi sửa và nhận về do M07 tạo: tài sản giữ trạng thái Đang sửa chữa suốt hai chiều, chỉ location đổi khi bên nhận xác nhận | [Đề xuất] |
+| BR-TRF-04 | Một tài sản chỉ nằm trong một phiếu điều chuyển đang mở tại một thời điểm, tính cả phiếu Nháp | [Đề xuất] |
 | BR-TRF-05 | Người xác nhận nhận hàng phải có vai trò trên location nhận; với đơn vị sửa chữa, Quản lý tài sản xác nhận thay | [Đề xuất] |
 | BR-TRF-06 | Phiếu và lịch sử điều chuyển không xoá được; huỷ chỉ áp cho phiếu chưa xuất | [Brief] B-16 |
 | BR-TRF-07 | Tài sản đang vận chuyển quá số ngày Every Half đặt thì cảnh báo Quản lý tài sản (Q-11) | [Đề xuất] |
 | BR-TRF-08 | Gửi đi sửa và nhận về từ sửa dùng cùng luồng phiếu điều chuyển, tạo từ phiếu sửa chữa (D-02) | [Brief] B-14 |
+| BR-TRF-09 | Phiếu điều chuyển điều chỉnh (lập từ F-STK-07, F-STK-09, F-DSP-06 khi tài sản đã nằm ở nơi khác sổ) bỏ bước xuất giao; điểm thực tế vẫn quét xác nhận nhận hàng | [Đề xuất] |
 
 Trạng thái phiếu điều chuyển: Nháp, Chờ duyệt, Đã duyệt, Đang vận chuyển, Nhận một phần, Đã nhận, Đã huỷ (mã ở Phụ lục B).
 
@@ -576,11 +654,11 @@ Trạng thái phiếu điều chuyển: Nháp, Chờ duyệt, Đã duyệt, Đan
 | Mã | Tính năng | Mô tả | GĐ | Nguồn |
 | --- | --- | --- | --- | --- |
 | F-MNT-01 | Báo hỏng bằng quét QR | Quét tài sản, chọn mô tả hỏng, chụp ảnh, gửi; hệ thống tạo yêu cầu sửa chữa gắn với tài sản | GĐ1 | [Brief] B-17 |
-| F-MNT-02 | Tiếp nhận và phân loại yêu cầu | Quản lý tài sản xem yêu cầu, tiếp nhận hoặc từ chối khi báo nhầm, chọn cách xử lý: sửa tại chỗ, gửi đơn vị sửa, giao kỹ thuật viên nội bộ; tài sản chuyển "Đang sửa chữa" khi tiếp nhận | GĐ1 | [Brief] B-19 |
-| F-MNT-03 | Gửi tài sản đi sửa và nhận về | Từ phiếu sửa, tạo phiếu điều chuyển tới đơn vị sửa chữa và phiếu nhận về theo luồng M06 | GĐ1 | [Brief] B-14 |
+| F-MNT-02 | Tiếp nhận và phân loại yêu cầu | Quản lý tài sản xem yêu cầu, tiếp nhận hoặc từ chối khi báo nhầm, chọn cách xử lý: sửa tại chỗ, gửi đơn vị sửa, giao kỹ thuật viên nội bộ; tài sản chuyển "Đang sửa chữa" khi tiếp nhận; phiếu sửa lưu trạng thái của tài sản trước khi sửa để trả lại khi nghiệm thu | GĐ1 | [Brief] B-19 |
+| F-MNT-03 | Gửi tài sản đi sửa và nhận về | Từ phiếu sửa, tạo phiếu điều chuyển tới đơn vị sửa chữa và phiếu nhận về theo luồng M06; tài sản giữ Đang sửa chữa và cost center cũ suốt hai chiều (BR-TRF-03), Quản lý tài sản xác nhận thay đơn vị sửa (BR-TRF-05) | GĐ1 | [Brief] B-14 |
 | F-MNT-04 | Cập nhật tiến độ sửa chữa | Ghi trạng thái phiếu sửa: chờ báo giá, đang sửa, chờ linh kiện, đã sửa xong; kèm ghi chú và ảnh | GĐ1 | [Brief] B-19 |
-| F-MNT-05 | Ghi chi phí và đơn vị sửa chữa | Ghi báo giá, chi phí thực tế, đơn vị sửa, hoá đơn; báo giá vượt ngưỡng cần duyệt trước khi sửa (Q-37) | GĐ1 | [Brief] B-18 |
-| F-MNT-06 | Nghiệm thu và đưa lại vào sử dụng | Người nhận nghiệm thu tài sản sau sửa, ghi kết quả và tình trạng; tài sản trở lại trạng thái trước khi sửa | GĐ1 | [Đề xuất] |
+| F-MNT-05 | Ghi chi phí và đơn vị sửa chữa | Ghi báo giá, chi phí thực tế, đơn vị sửa, hoá đơn; báo giá vượt ngưỡng cần duyệt trước khi sửa, người duyệt theo ma trận ở §8 (Q-37) | GĐ1 | [Brief] B-18 |
+| F-MNT-06 | Nghiệm thu và đưa lại vào sử dụng | Quản lý điểm nơi tài sản trở về (hoặc Kỹ thuật viên nếu Every Half có, Q-14) nghiệm thu tài sản sau sửa, ghi kết quả và tình trạng; tài sản trở lại trạng thái trước khi sửa | GĐ1 | [Đề xuất] |
 | F-MNT-07 | Chuyển sang đề nghị thanh lý | Khi không sửa được hoặc chi phí sửa không đáng, lập đề nghị thanh lý ngay từ phiếu sửa | GĐ1 | [Đề xuất] |
 | F-MNT-08 | Lịch sử bảo trì của tài sản | Xem mọi lần hỏng, sửa, chi phí, đơn vị sửa của một tài sản | GĐ1 | [Brief] B-18 |
 | F-MNT-09 | Kế hoạch bảo trì định kỳ | Lịch bảo trì theo loại tài sản (ví dụ máy rang, máy pha) và nhắc việc | GĐ3 | [Đề xuất] |
@@ -593,6 +671,8 @@ Trạng thái phiếu điều chuyển: Nháp, Chờ duyệt, Đã duyệt, Đan
 | BR-MNT-04 | Chi phí sửa ghi theo từng lần sửa, kèm đơn vị sửa và chứng từ; báo giá vượt ngưỡng Every Half đặt cần duyệt trước khi sửa (Q-37) | [Brief] B-18 |
 | BR-MNT-05 | Tài sản chỉ rời trạng thái "Đang sửa chữa" khi phiếu sửa được nghiệm thu hoặc chuyển sang đề nghị thanh lý | [Brief] B-19 |
 | BR-MNT-06 | Chi phí sửa được ghi nhận là chi phí trong kỳ hay làm tăng nguyên giá do Kế toán trưởng quyết định; EH-AM chỉ lưu số tiền và phân loại được chọn | [Đề xuất] |
+| BR-MNT-08 | Chuyển thanh lý chưa phải trạng thái kết thúc của phiếu sửa: đề nghị thanh lý bị từ chối hoặc huỷ thì phiếu sửa trở lại Đã tiếp nhận; đề nghị được thực hiện thì phiếu sửa đóng | [Đề xuất] |
+| BR-MNT-09 | Nghiệm thu không đạt đưa phiếu sửa từ Đã sửa xong về Đang sửa, kèm lý do người nghiệm thu chọn; tài sản giữ Đang sửa chữa | [Đề xuất], từ bộ UC |
 | BR-MNT-07 | Người báo hỏng nhận thông báo khi yêu cầu được tiếp nhận, bị từ chối và khi nghiệm thu xong | [Đề xuất] |
 
 Trạng thái phiếu sửa: Mới báo, Đã tiếp nhận, Chờ báo giá, Chờ duyệt chi phí, Đang sửa, Chờ linh kiện, Đã sửa xong, Đã nghiệm thu, Đã từ chối, Chuyển thanh lý (mã ở Phụ lục B).
@@ -611,18 +691,18 @@ Trạng thái phiếu sửa: Mới báo, Đã tiếp nhận, Chờ báo giá, Ch
 | Mã | Tính năng | Mô tả | GĐ | Nguồn |
 | --- | --- | --- | --- | --- |
 | F-DSP-01 | Đề nghị thanh lý | Chọn tài sản, lý do (hỏng không sửa được, lỗi thời, hết nhu cầu), hình thức đề xuất (bán, huỷ bỏ, cho tặng, trả nhà cung cấp), ảnh hiện trạng | GĐ1 | [Brief] B-20 |
-| F-DSP-02 | Duyệt đề nghị thanh lý | Người duyệt theo hạn mức giá trị duyệt hoặc từ chối, có thể nhiều cấp (Q-08); duyệt xong tài sản chuyển "Chờ thanh lý" | GĐ1 | [Brief] B-20 |
+| F-DSP-02 | Duyệt đề nghị thanh lý | Người duyệt theo hạn mức giá trị duyệt hoặc từ chối, có thể nhiều cấp (Q-08); hệ thống tự xếp cấp duyệt, người lập không thấy nguyên giá (BR-DSP-03); duyệt xong tài sản chuyển "Chờ thanh lý" | GĐ1 | [Brief] B-20 |
 | F-DSP-03 | Thực hiện thanh lý | Ghi hình thức thực tế, ngày, bên nhận hoặc bên mua, số tiền thu về, biên bản; tài sản chuyển "Đã thanh lý" | GĐ1 | [Brief] B-20 |
 | F-DSP-04 | Huỷ đề nghị thanh lý | Huỷ đề nghị chưa thực hiện, có lý do; tài sản trở lại trạng thái trước | GĐ1 | [Đề xuất] |
-| F-DSP-05 | Xác nhận tài sản mất | Từ tài sản "Nghi mất" sau kiểm kê, hoặc báo mất đột xuất: lập đề nghị xác nhận mất kèm kết quả xác minh; duyệt xong tài sản chuyển "Mất" | GĐ1 | [Brief] B-09, B-12 |
-| F-DSP-06 | Ghi nhận tìm thấy lại | Tài sản đã "Mất" được tìm thấy: lập đề nghị khôi phục có duyệt; tài sản trở lại "Đang sử dụng" tại location nơi tìm thấy | GĐ1 | [Đề xuất] |
+| F-DSP-05 | Xác nhận tài sản mất | Từ tài sản "Nghi mất" đã xác minh (F-STK-09, F-TRF-05), hoặc báo mất đột xuất (tài sản chuyển Nghi mất khi gửi báo): lập đề nghị xác nhận mất kèm kết quả xác minh; duyệt xong tài sản chuyển "Mất" | GĐ1 | [Brief] B-09, B-12 |
+| F-DSP-06 | Ghi nhận tìm thấy lại | Tài sản đã "Mất" được tìm thấy: lập đề nghị khôi phục có duyệt; tài sản trở lại Lưu kho hoặc Đang sử dụng tại location theo sổ; tìm thấy ở nơi khác thì lập điều chuyển điều chỉnh (BR-TRF-09) | GĐ1 | [Đề xuất] |
 | F-DSP-07 | Báo giảm sang FAST | Sau khi thực hiện thanh lý hoặc xác nhận mất, tạo yêu cầu ghi giảm gửi sang FAST qua M10 | GĐ2 | [Brief] B-20 |
 
 | Mã | Quy tắc | Nguồn |
 | --- | --- | --- |
 | BR-DSP-01 | Tài sản chỉ chuyển "Đã thanh lý" khi đề nghị đã được duyệt và việc thanh lý đã thực hiện, có biên bản | [Brief] B-20 |
 | BR-DSP-02 | Người đề nghị không duyệt đề nghị của chính mình (BR-CMN-08) | [Đề xuất] |
-| BR-DSP-03 | Cấp duyệt theo hạn mức nguyên giá do Every Half đặt (Q-08) | [Đề xuất] |
+| BR-DSP-03 | Cấp duyệt theo hạn mức nguyên giá do Every Half đặt (Q-08); hệ thống tự xếp cấp duyệt mà không hiện nguyên giá cho người lập; tài sản chưa có nguyên giá thì không gửi duyệt được cho tới khi Kế toán tài sản nhập | [Đề xuất] |
 | BR-DSP-04 | Tài sản đang trong phiếu điều chuyển hoặc phiếu sửa đang mở không được đề nghị thanh lý, trừ đề nghị lập từ chính phiếu sửa đó | [Đề xuất] |
 | BR-DSP-05 | "Mất" chỉ ghi khi có kết quả xác minh và có người duyệt; kiểm kê không tìm thấy chỉ tạo trạng thái "Nghi mất" (D-07) | [Brief] B-12 |
 | BR-DSP-06 | Đề nghị đã duyệt mà chưa thực hiện quá số ngày Every Half đặt thì cảnh báo Quản lý tài sản | [Đề xuất] |
@@ -715,7 +795,7 @@ Hệ nào tính khấu hao chính thức là quyết định của Kế toán tr
 
 | Mã | Tính năng | Mô tả | GĐ | Nguồn |
 | --- | --- | --- | --- | --- |
-| F-DSH-01 | Dashboard tổng quan | Tổng số tài sản theo trạng thái và loại; tổng nguyên giá với vai trò được xem giá trị | GĐ1 | [Brief] B-31 |
+| F-DSH-01 | Dashboard tổng quan | Tổng số tài sản theo trạng thái và loại; tổng nguyên giá với vai trò được xem giá trị, kèm số tài sản chưa có nguyên giá để biết tổng còn thiếu | GĐ1 | [Brief] B-31 |
 | F-DSH-02 | Tài sản theo location | Phân bổ theo cửa hàng, xưởng rang, kho, văn phòng; mở vào từng điểm để xem chi tiết | GĐ1 | [Brief] B-32 |
 | F-DSH-03 | Tài sản mất và hỏng | Số lượng và danh sách tài sản nghi mất, mất, hư hỏng, đang sửa; theo điểm và theo thời gian | GĐ1 | [Brief] B-34 |
 | F-DSH-04 | Tiến độ kiểm kê | Trong đợt hiện tại: điểm đã duyệt, đã chốt, đang kiểm, chưa bắt đầu; tỷ lệ tài sản đã quét | GĐ1 | [Brief] B-35 |
@@ -760,9 +840,25 @@ Hệ nào tính khấu hao chính thức là quyết định của Kế toán tr
 | BR-AUD-05 | Thông báo không chứa giá trị tài sản hay dữ liệu cá nhân, chỉ chứa mã việc và đường dẫn tới việc | [Đề xuất] |
 | BR-AUD-06 | Kiểm soát nội bộ chỉ xem, không thực hiện thao tác nghiệp vụ | [Đề xuất] |
 
+Sự kiện thông báo mặc định (F-AUD-04, F-AUD-05). Quản trị hệ thống bật, tắt từng dòng và đổi ngưỡng ở F-AUD-06; ngưỡng thật chờ Q-11, Q-13.
+
+| Sự kiện | Người nhận | Kênh | Ngưỡng mặc định |
+| --- | --- | --- | --- |
+| Được giao kiểm kê một điểm | Người được phân công | Hộp việc, email | Khi mở đợt |
+| Sắp hết hạn kiểm kê | Người được phân công, Quản lý điểm | Hộp việc, email | Trước hạn một ngày |
+| Điểm đã chốt, chờ duyệt | Người duyệt theo BR-STK-06 | Hộp việc | Khi chốt |
+| Phiếu điều chuyển chờ duyệt, chờ nhận | Người duyệt; Quản lý điểm nơi nhận | Hộp việc, email | Khi gửi, khi xuất |
+| Tài sản đang vận chuyển quá hạn | Quản lý tài sản | Hộp việc, email | Theo BR-TRF-07 |
+| Yêu cầu sửa mới; kết quả tiếp nhận, nghiệm thu | Quản lý tài sản; người báo hỏng (BR-MNT-07) | Hộp việc, email | Khi có sự kiện |
+| Báo giá chờ duyệt, đề nghị chờ duyệt | Người duyệt theo ma trận §8 | Hộp việc, email | Khi gửi |
+| Nghi mất quá hạn chưa có kết luận | Quản lý tài sản | Hộp việc, email | Theo BR-STK-07 |
+| Đề nghị thanh lý đã duyệt chưa thực hiện | Quản lý tài sản, Kế toán tài sản | Hộp việc | Theo BR-DSP-06 |
+| Cost center của tài sản đổi | Kế toán tài sản | Hộp việc | Khi nhận hàng (BR-TRF-02) |
+| Lời mời kích hoạt, lời mời sắp hết hạn | Nhân viên được mời; Quản trị hệ thống | Email; hộp việc | Khi tạo; trước hạn một ngày |
+
 # PHẦN IV. Tự động hoá, dữ liệu, tích hợp, bảo mật và trải nghiệm
 
-Các năng lực dùng chung quyết định độ tin cậy của dữ liệu tài sản và trải nghiệm tại hiện trường.
+Phần này gom các yêu cầu áp cho mọi module: job tự động, dữ liệu, hồ sơ số, API và tích hợp, bảo mật, giao diện.
 
 > **Tuyên bố thiết kế**
 > Các yêu cầu trong phần này áp cho mọi module. Use case của từng module tham chiếu tới đây thay vì viết lại, và code không được làm yếu đi bất kỳ yêu cầu nào mà không có quyết định ghi ở Phụ lục I.
@@ -810,8 +906,8 @@ Nhóm thực thể chính:
 
 | Nhóm | Thực thể |
 | --- | --- |
-| Danh tính và phân quyền | UserProfile, RoleAssignment |
-| Danh mục nền | Location, CostCenter, AssetCategory, Supplier, RepairVendor, ReasonCode |
+| Danh tính và phân quyền | UserProfile (gồm hồ sơ nhân viên và cấp trên trực tiếp), ActivationInvite, RoleAssignment |
+| Danh mục nền | Location, CostCenter, AssetCategory, Supplier, RepairVendor, ReasonCode, Department |
 | Tài sản | Asset, AssetEvent, AssetDocument, LabelBatch, LabelPrint |
 | Kiểm kê | Stocktake, StocktakeLocation, StocktakeItem, ScanRecord |
 | Điều chuyển | Transfer, TransferItem |
@@ -842,7 +938,7 @@ Quy ước dữ liệu [Đề xuất]:
 | Nhóm API | Phạm vi | GĐ |
 | --- | --- | --- |
 | `/v1/auth` | Đăng nhập, phiên, mật khẩu, hồ sơ cá nhân (đã có) | GĐ1 |
-| `/v1/users`, `/v1/role-assignments` | Tài khoản, khoá, vai trò theo location | GĐ1 |
+| `/v1/employees`, `/v1/org-chart`, `/v1/role-assignments` | Tài khoản, khoá, vai trò theo location | GĐ1 |
 | `/v1/master-data` | Location, cost center, loại tài sản, nhà cung cấp, đơn vị sửa chữa, lý do | GĐ1 |
 | `/v1/assets` | Hồ sơ, nhập từ file, chứng từ, dòng thời gian, xuất danh sách | GĐ1 |
 | `/v1/labels`, `/v1/scan` | Lô in nhãn, xác nhận dán nhãn, tra cứu bằng QR | GĐ1 |
@@ -869,13 +965,13 @@ Nguyên tắc API:
 | --- | --- |
 | Xác thực | Đăng nhập qua Supabase Auth; token trả cho trình duyệt được mã hoá thêm một lớp; trạng thái tài khoản kiểm lại ở mỗi request (đã có) |
 | Phân quyền | Vai trò theo location, kiểm ở máy chủ, mặc định từ chối; danh sách lọc ngay trong câu truy vấn (BR-CMN-03) |
-| Quản trị tối cao | Một tài khoản dự phòng dùng khi phân quyền bị cấu hình sai; mọi thao tác của tài khoản này được ghi nhật ký và rà lại |
+| Quản trị tối cao | Một tài khoản dự phòng dùng khi phân quyền bị cấu hình sai; mọi thao tác của tài khoản này được ghi nhật ký; Kiểm soát nội bộ rà lại sau mỗi lần dùng |
 | Bảo vệ dữ liệu | Giá trị tài sản chỉ hiện theo vai trò (BR-CMN-06); dữ liệu trả ra qua mapper riêng cho từng đối tượng người xem |
 | Toàn vẹn lịch sử | Bảng lịch sử và nhật ký chỉ ghi thêm; trigger chặn sửa, xoá ở cấp cơ sở dữ liệu |
 | Ứng dụng và API | Kiểm dữ liệu đầu vào, từ chối trường lạ, giới hạn tần suất, giới hạn kích thước request, header bảo mật, CORS theo danh sách |
 | Sao lưu và khôi phục | Sao lưu hằng ngày; thử khôi phục trước go-live; mức chịu mất dữ liệu tối đa và thời gian khôi phục chờ Every Half chốt (Q-39) |
 
-Dữ liệu cá nhân. Toạ độ khi quét, ảnh có thể có người trong khung hình, họ tên và mã nhân viên trong nhật ký đều là dữ liệu cá nhân. Căn cứ đề xuất là Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân và Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15; cần pháp chế xác nhận số hiệu, ngày hiệu lực và nghĩa vụ áp dụng cho Every Half (Q-20). Trong lúc chờ, EH-AM áp các biện pháp sau:
+Về dữ liệu cá nhân: toạ độ khi quét, ảnh có thể có người trong khung hình, họ tên và mã nhân viên trong nhật ký đều là dữ liệu cá nhân. Căn cứ đề xuất là Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân và Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15; cần pháp chế xác nhận số hiệu, ngày hiệu lực và nghĩa vụ áp dụng cho Every Half (Q-20). Trong lúc chờ, EH-AM áp các biện pháp sau:
 
 - Toạ độ tắt mặc định; Every Half quyết định có bật hay không (Q-20, Q-31).
 - Nhân viên được thông báo mục đích thu ảnh và toạ độ trước lần quét đầu tiên.
@@ -906,7 +1002,7 @@ Danh mục màn hình chính ở Phụ lục K.
 
 # PHẦN V. Quy trình, KPI, điều hành và mô hình vận hành
 
-Chức năng được nối thành quy trình có người làm, người duyệt, trạng thái và thời hạn.
+Phần V ghép tính năng thành quy trình có người làm, người duyệt, trạng thái và thời hạn, rồi nêu KPI, RACI và nhóm chi phí vận hành.
 
 > **Tuyên bố thiết kế**
 > Mỗi quy trình dưới đây ứng với một hoặc nhiều use case. Thời hạn trong cột SLA là đề xuất của đội triển khai; Every Half chốt con số cuối cùng trước pilot.
@@ -915,8 +1011,8 @@ Chức năng được nối thành quy trình có người làm, người duyệ
 
 | Mã | Quy trình | Trigger | Tác nhân | Người duyệt | Trạng thái chính | SLA đề xuất |
 | --- | --- | --- | --- | --- | --- | --- |
-| WF-01 | Tạo tài khoản và gán vai trò | Có nhân viên mới | Quản trị hệ thống | Không cần | Tài khoản Đang hoạt động, có vai trò trên location | Trong ngày làm việc |
-| WF-02 | Khoá tài khoản khi nghỉ việc | Nhân sự báo nhân viên nghỉ | Quản trị hệ thống | Không cần | Tài khoản Đã ngừng, vai trò đóng hiệu lực | Trong ngày nhân viên nghỉ |
+| WF-01 | Tạo tài khoản nhân viên và kích hoạt | Có nhân viên mới | Quản trị hệ thống, rồi nhân viên kích hoạt | Không cần | Hồ sơ có đơn vị công tác và cấp trên; tài khoản Chờ kích hoạt rồi Đang hoạt động; có vai trò trên location | Tạo trong ngày làm việc; lời mời theo hạn ở Q-40 |
+| WF-02 | Cho nhân viên nghỉ việc | Nhân sự báo nhân viên nghỉ | Quản trị hệ thống | Không cần | Tài khoản Đã ngừng, vai trò đóng hiệu lực, phiên bị thu hồi, cấp dưới có cấp trên mới, tài sản có người chịu trách nhiệm mới | Trong ngày nhân viên nghỉ |
 | WF-03 | Lập hồ sơ và dán nhãn tài sản mới | Tài sản nhận về | Quản lý tài sản | Không cần | Lưu kho hoặc Đang sử dụng; đã dán nhãn | Dán nhãn trong tuần nhận tài sản |
 | WF-04 | Nhập danh sách tài sản ban đầu | Chuyển đổi dữ liệu trước go-live | Quản lý tài sản | Kế toán trưởng xác nhận danh sách | Hồ sơ đã tạo, chờ dán nhãn | Theo kế hoạch §35 |
 | WF-05 | Kiểm kê tháng tại điểm | Đợt kiểm kê mở | Nhân viên điểm | Quản lý điểm | Điểm trong đợt: Đang kiểm, Đã chốt, Đã duyệt | Chốt trước hạn của đợt |
@@ -1010,7 +1106,7 @@ Nguyên tắc bền vững:
 
 # PHẦN VI. Kiến trúc kỹ thuật và các bước triển khai
 
-Hợp đồng bàn giao để đội kỹ thuật chia việc theo module, dữ liệu, API, quyền và kiểm thử.
+Phần VI dành cho đội kỹ thuật: công nghệ, cấu trúc repo, ràng buộc bắt buộc và các bước triển khai.
 
 > **Tuyên bố thiết kế**
 > Kiến trúc dưới đây bám theo hai repo đang có, `eh_am_backend` và `eh_am_frontend`. Đổi công nghệ nền hay bỏ một hợp đồng ở §29 cần ghi quyết định ở Phụ lục I trước khi code.
@@ -1036,8 +1132,8 @@ Kiến trúc triển khai đề xuất:
 
 | Module | Thư mục backend | Bảng chính | Trạng thái |
 | --- | --- | --- | --- |
-| M01 Người dùng và phân quyền | `src/auth/`, `src/users/` | `user_profiles`, `context_role_assignments` | Auth đã có; quản lý người dùng chưa có |
-| M02 Danh mục nền | `src/master-data/` | `locations`, `cost_centers`, `asset_categories`, `suppliers`, `repair_vendors`, `reason_codes` | Chưa có |
+| M01 Người dùng và phân quyền | `src/auth/`, `src/employees/` | `user_profiles`, `activation_invites`, `context_role_assignments` | Auth đã có; hồ sơ nhân viên, sơ đồ tổ chức, lời mời chưa có; `user_profiles` cần thêm cột hồ sơ nhân viên |
+| M02 Danh mục nền | `src/master-data/` | `locations`, `cost_centers`, `asset_categories`, `suppliers`, `repair_vendors`, `reason_codes`, `departments` | Chưa có |
 | M03 Hồ sơ tài sản | `src/assets/` | `assets`, `asset_events`, `asset_documents` | Chưa có |
 | M04 QR và nhãn | `src/labels/` | `label_batches`, `label_prints` | Chưa có |
 | M05 Kiểm kê | `src/stocktakes/` | `stocktakes`, `stocktake_locations`, `stocktake_items`, `scan_records` | Chưa có |
@@ -1056,7 +1152,9 @@ Quy tắc bounded context:
 - Module này đọc dữ liệu của module khác qua service công khai của module đó, không truy vấn thẳng bảng của nhau.
 - Bảng mới đăng ký tên trong `src/supabase/supabase.define.ts` cùng lúc với migration tạo bảng.
 
-## 29. Hợp đồng kỹ thuật không thương lượng
+## 29. Ràng buộc kỹ thuật bắt buộc
+
+Muốn nới ràng buộc nào thì ghi quyết định ở Phụ lục I trước.
 
 1. Phạm vi location được xác định ở máy chủ từ vai trò của người dùng và từ tài nguyên đang thao tác; không tin location do client gửi.
 2. Không có thao tác xoá cứng dữ liệu nghiệp vụ; bảng lịch sử và nhật ký có trigger chặn sửa, xoá.
@@ -1109,7 +1207,7 @@ Mười bốn bước, mười ba bước thuộc MVP1 và một bước cho GĐ
 | --- | --- |
 | Lộ trình | Tuần 1-3 |
 | Phạm vi | M01: tạo và mời tài khoản, khoá tài khoản, gán và thu hồi vai trò theo location, danh sách người dùng; mở rộng danh mục vai trò theo §8; đóng đăng ký công khai theo D-01 |
-| Đầu ra chính | API `/v1/users`, `/v1/role-assignments`; màn hình quản lý người dùng; danh mục vai trò mới trong code |
+| Đầu ra chính | API `/v1/employees`, `/v1/org-chart`, `/v1/role-assignments`; màn hình quản lý người dùng; danh mục vai trò mới trong code |
 | Phụ thuộc | S01 |
 | Quy trình | WF-01, WF-02 |
 | Tiêu chí nghiệm thu | Người không có vai trò trên location bị từ chối ở cả thao tác lẻ và danh sách; tài khoản bị khoá mất quyền ngay ở request kế tiếp |
@@ -1329,7 +1427,7 @@ Lộ trình dựa trên giả định A-11 về đội triển khai (một PO/BA
 
 Nguyên tắc cổng:
 
-- Tới ngày trên kế hoạch không phải là lý do để qua cổng; cần bằng chứng theo cột điều kiện.
+- Cổng chỉ qua khi có bằng chứng cho từng điều kiện trong bảng, kể cả khi đã tới ngày trên kế hoạch.
 - Đội triển khai không tự duyệt cổng của mình.
 - "Qua có điều kiện" phải ghi rõ điều kiện, người chịu trách nhiệm và hạn hoàn thành.
 - Không mở rộng khi pilot còn lỗi nghiêm trọng chưa xử lý.
@@ -1342,7 +1440,7 @@ Nguyên tắc cổng:
 3. Chuyển danh sách về mẫu nhập của F-AST-02, nạp thử trên staging và sửa theo báo cáo lỗi.
 4. Nạp từng điểm vào production; hồ sơ ở trạng thái chưa xác nhận dán nhãn.
 5. In nhãn theo lô cho từng điểm (F-QR-02) và gửi tới điểm cùng danh sách tài sản.
-6. Dán nhãn và xác nhận bằng quét (F-QR-03); tài sản không tìm thấy khi dán được ghi lại.
+6. Dán nhãn và xác nhận bằng quét (F-QR-03); người dán đánh dấu tài sản không tìm thấy trên danh sách của lô in, Quản lý tài sản xử lý trước đợt kiểm kê đầu tiên của điểm.
 7. Kiểm kê lần đầu ngay sau khi dán xong; kết quả là số liệu nền của điểm.
 8. Đối chiếu kết quả kiểm kê lần đầu với danh sách đã nạp; điểm còn lệch lớn thì dán và kiểm lại trước khi mở hệ thống cho điểm đó.
 
@@ -1355,7 +1453,7 @@ Nguyên tắc cổng:
 - Gói go-live của mỗi đợt gồm: danh sách điểm, dữ liệu đã đối chiếu, tài khoản và vai trò, nhãn đã dán, người dùng đã được đào tạo, sao lưu trước khi mở, kế hoạch quay lại.
 - Trực chiến gồm đội triển khai và đầu mối của Every Half cho Vận hành, Kế toán, IT; giờ trực và cách liên hệ chốt theo Q-33.
 - Quyết định ở mỗi đợt: tiếp tục, tiếp tục có điều kiện, dừng đợt, quay lại.
-- Hypercare kết thúc khi đợt kiểm kê đầu tiên sau go-live được duyệt ở mọi điểm, không còn lỗi nghiêm trọng, số yêu cầu hỗ trợ giảm dần, và người dùng tự làm được các thao tác chính mà không cần hỏi.
+- Hypercare kết thúc khi đợt kiểm kê đầu tiên sau go-live được duyệt ở mọi điểm, không còn lỗi nghiêm trọng, và số yêu cầu hỗ trợ mỗi tuần dưới ngưỡng Every Half chốt (Q-43) trong hai tuần liên tiếp.
 
 ## 37. Đo lường lợi ích
 
@@ -1430,7 +1528,7 @@ Bảng tham chiếu cho đội triển khai và Every Half khi rà phạm vi, vi
 | Nhóm API | Tài nguyên chính | Module | GĐ |
 | --- | --- | --- | --- |
 | `/v1/auth` | Đăng ký (đóng khi D-01 được duyệt), xác nhận email, đăng nhập, làm mới phiên, đăng xuất, đăng xuất mọi thiết bị, quên, đặt lại, đổi mật khẩu, `/me` | M01 | GĐ1, đã có |
-| `/v1/users`, `/v1/role-assignments` | Tài khoản, lời mời, khoá, vai trò theo location | M01 | GĐ1 |
+| `/v1/employees`, `/v1/org-chart`, `/v1/role-assignments` | Tài khoản, lời mời, khoá, vai trò theo location | M01 | GĐ1 |
 | `/v1/master-data` | Location, cost center, loại tài sản, nhà cung cấp, đơn vị sửa chữa, lý do | M02 | GĐ1 |
 | `/v1/assets` | Hồ sơ, thông tin tài chính, người chịu trách nhiệm, chứng từ, dòng thời gian, nhập từ file, xuất danh sách | M03 | GĐ1 |
 | `/v1/labels`, `/v1/scan` | Lô in nhãn, in lại, xác nhận dán nhãn, tra cứu bằng QR | M04 | GĐ1 |
@@ -1460,8 +1558,8 @@ Bảng tham chiếu cho đội triển khai và Every Half khi rà phạm vi, vi
 | `IN_USE` | Đang sử dụng | Đang dùng tại một location | Không | [Brief] B-09 |
 | `PENDING_TRANSFER` | Chờ điều chuyển | Nằm trong phiếu điều chuyển chưa xuất | Không | [Brief] B-09 |
 | `IN_TRANSIT` | Đang vận chuyển | Đã xuất, bên nhận chưa xác nhận (Q-11) | Không | [Đề xuất] |
-| `UNDER_REPAIR` | Đang sửa chữa | Có phiếu sửa đã tiếp nhận | Không | [Brief] B-09 |
-| `MISSING` | Nghi mất | Không tìm thấy khi kiểm kê, đang xác minh | Không | [Đề xuất] |
+| `UNDER_REPAIR` | Đang sửa chữa | Có phiếu sửa đã tiếp nhận, kể cả thời gian ở đơn vị sửa và trên đường gửi đi, nhận về | Không | [Brief] B-09 |
+| `MISSING` | Nghi mất | Không tìm thấy khi kiểm kê, không tới khi điều chuyển, hoặc được báo mất; đang xác minh | Không | [Đề xuất] |
 | `PENDING_DISPOSAL` | Chờ thanh lý | Đề nghị thanh lý đã duyệt, chưa thực hiện | Không | [Đề xuất] |
 | `DISPOSED` | Đã thanh lý | Thanh lý đã thực hiện, có biên bản | Có | [Brief] B-09 |
 | `LOST` | Mất | Đã xác minh và được duyệt xác nhận mất | Có | [Brief] B-09 |
@@ -1489,12 +1587,50 @@ Bảng tham chiếu cho đội triển khai và Every Half khi rà phạm vi, vi
 
 | Đối tượng | Trạng thái |
 | --- | --- |
+| Đợt kiểm kê | `DRAFT` Nháp · `OPEN` Đang mở · `CLOSED` Đã đóng · `CANCELLED` Đã huỷ |
 | Điểm trong đợt kiểm kê | `NOT_STARTED` Chưa bắt đầu · `COUNTING` Đang kiểm · `SUBMITTED` Đã chốt · `RECOUNT_REQUESTED` Yêu cầu kiểm lại · `APPROVED` Đã duyệt |
 | Phiếu điều chuyển | `DRAFT` Nháp · `PENDING_APPROVAL` Chờ duyệt · `APPROVED` Đã duyệt · `IN_TRANSIT` Đang vận chuyển · `PARTIALLY_RECEIVED` Nhận một phần · `RECEIVED` Đã nhận · `CANCELLED` Đã huỷ |
-| Phiếu sửa chữa | `REPORTED` Mới báo · `ACCEPTED` Đã tiếp nhận · `AWAITING_QUOTE` Chờ báo giá · `AWAITING_COST_APPROVAL` Chờ duyệt chi phí · `IN_REPAIR` Đang sửa · `AWAITING_PARTS` Chờ linh kiện · `REPAIRED` Đã sửa xong · `ACCEPTED_BACK` Đã nghiệm thu · `REJECTED` Đã từ chối · `TO_DISPOSAL` Chuyển thanh lý |
+| Phiếu sửa chữa | `REPORTED` Mới báo · `ACCEPTED` Đã tiếp nhận · `AWAITING_QUOTE` Chờ báo giá · `AWAITING_COST_APPROVAL` Chờ duyệt chi phí · `IN_REPAIR` Đang sửa · `AWAITING_PARTS` Chờ linh kiện · `REPAIRED` Đã sửa xong · `ACCEPTED_BACK` Đã nghiệm thu · `REJECTED` Đã từ chối · `TO_DISPOSAL` Chuyển thanh lý · `CLOSED` Đã đóng |
+| Chênh lệch kiểm kê | `OPEN` Chưa xử lý · `RESOLVED` Đã xử lý |
 | Đề nghị thanh lý, đề nghị xác nhận mất, đề nghị tìm thấy lại | `DRAFT` Nháp · `PENDING_APPROVAL` Chờ duyệt · `APPROVED` Đã duyệt · `COMPLETED` Đã thực hiện · `REJECTED` Đã từ chối · `CANCELLED` Đã huỷ |
-| Tài khoản | `ACTIVE` Đang hoạt động · `SUSPENDED` Tạm khoá · `DEACTIVATED` Đã ngừng |
+| Tài khoản | `PENDING_ACTIVATION` Chờ kích hoạt · `ACTIVE` Đang hoạt động · `SUSPENDED` Tạm khoá · `DEACTIVATED` Đã ngừng |
+| Lời mời kích hoạt | `SENT` Đã gửi · `USED` Đã dùng · `EXPIRED` Hết hạn · `REVOKED` Đã thay bằng lời mời mới |
 | Yêu cầu đồng bộ FAST (GĐ2) | `PENDING` · `SYNCED` · `ERROR` |
+
+### B.5. Chuyển trạng thái của phiếu
+
+| Phiếu | Từ | Sang | Khi nào, ai |
+| --- | --- | --- | --- |
+| Điểm trong đợt kiểm kê | `NOT_STARTED` | `COUNTING` | Lượt quét đầu tiên của điểm |
+| Điểm trong đợt kiểm kê | `COUNTING` | `SUBMITTED` | Người kiểm chốt kết quả (F-STK-05) |
+| Điểm trong đợt kiểm kê | `SUBMITTED` | `RECOUNT_REQUESTED` hoặc `APPROVED` | Người duyệt theo BR-STK-06 |
+| Điểm trong đợt kiểm kê | `RECOUNT_REQUESTED` | `COUNTING` | Người kiểm quét lại |
+| Đợt kiểm kê | `DRAFT` | `OPEN` hoặc `CANCELLED` | Quản lý tài sản hoặc Bộ lập lịch mở đợt; huỷ khi chưa mở |
+| Đợt kiểm kê | `OPEN` | `CLOSED` | Mọi điểm đã duyệt |
+| Phiếu điều chuyển | `DRAFT` | `PENDING_APPROVAL` hoặc `APPROVED` | Người tạo gửi; phiếu không thuộc diện cần duyệt thì sang thẳng Đã duyệt (Q-36) |
+| Phiếu điều chuyển | `PENDING_APPROVAL` | `APPROVED` hoặc `DRAFT` | Người duyệt duyệt, hoặc trả lại kèm lý do |
+| Phiếu điều chuyển | `DRAFT`, `PENDING_APPROVAL`, `APPROVED` | `CANCELLED` | Người tạo hoặc Quản lý tài sản huỷ khi chưa xuất |
+| Phiếu điều chuyển | `APPROVED` | `IN_TRANSIT` | Điểm gửi xuất giao; phiếu điều chỉnh bỏ bước này (BR-TRF-09) |
+| Phiếu điều chuyển | `IN_TRANSIT` | `PARTIALLY_RECEIVED` hoặc `RECEIVED` | Điểm nhận xác nhận; còn tài sản chưa có kết luận thì Nhận một phần |
+| Phiếu điều chuyển | `PARTIALLY_RECEIVED` | `RECEIVED` | Mọi tài sản đã nhận hoặc đã kết luận không tới (F-TRF-05) |
+| Phiếu sửa chữa | `REPORTED` | `ACCEPTED` hoặc `REJECTED` | Quản lý tài sản tiếp nhận hoặc từ chối |
+| Phiếu sửa chữa | `ACCEPTED`, `AWAITING_QUOTE`, `AWAITING_PARTS`, `IN_REPAIR` | Một trong các trạng thái này, hoặc `AWAITING_COST_APPROVAL`, `REPAIRED` | Cập nhật tiến độ (F-MNT-04); báo giá vượt ngưỡng sang Chờ duyệt chi phí |
+| Phiếu sửa chữa | `AWAITING_COST_APPROVAL` | `IN_REPAIR` hoặc `ACCEPTED` | Người duyệt duyệt hoặc từ chối báo giá |
+| Phiếu sửa chữa | `REPAIRED` | `ACCEPTED_BACK` | Nghiệm thu đạt (F-MNT-06) |
+| Phiếu sửa chữa | `REPAIRED` | `IN_REPAIR` | Nghiệm thu không đạt, có lý do (BR-MNT-09) |
+| Phiếu sửa chữa | `ACCEPTED` đến `REPAIRED` | `TO_DISPOSAL` | Lập đề nghị thanh lý từ phiếu sửa (F-MNT-07) |
+| Phiếu sửa chữa | `TO_DISPOSAL` | `ACCEPTED` | Đề nghị bị từ chối hoặc huỷ (BR-MNT-08) |
+| Phiếu sửa chữa | `TO_DISPOSAL` | `CLOSED` | Đề nghị thanh lý lập từ phiếu được thực hiện (BR-MNT-08) |
+| Đề nghị | `DRAFT` | `PENDING_APPROVAL` | Người đề nghị gửi |
+| Đề nghị | `PENDING_APPROVAL` | `APPROVED` hoặc `REJECTED` | Người duyệt theo ma trận ở §8 |
+| Đề nghị | `DRAFT`, `PENDING_APPROVAL`, `APPROVED` | `CANCELLED` | Người đề nghị huỷ khi chưa thực hiện |
+| Đề nghị | `APPROVED` | `COMPLETED` | Thực hiện thanh lý (F-DSP-03); đề nghị xác nhận mất và khôi phục hoàn tất ngay khi duyệt |
+| Tài khoản | `PENDING_ACTIVATION` | `ACTIVE` | Nhân viên kích hoạt qua lời mời, hoặc đổi mật khẩu tạm ở lần đăng nhập đầu (F-IAM-08, BR-IAM-14) |
+| Tài khoản | `ACTIVE` | `SUSPENDED` | Quản trị hệ thống khoá, có lý do |
+| Tài khoản | `SUSPENDED` | `ACTIVE` | Quản trị hệ thống mở khoá, có lý do |
+| Tài khoản | `PENDING_ACTIVATION`, `ACTIVE`, `SUSPENDED` | `DEACTIVATED` | Cho nghỉ việc (F-IAM-11) |
+
+Mã trạng thái trùng tên giữa hai bảng (ví dụ `IN_TRANSIT` của tài sản và của phiếu điều chuyển) là hai kiểu dữ liệu riêng, không dùng chung một enum. Tên "Hủy" ở B.1 giữ nguyên chữ của brief (B-09).
 
 ## Phụ lục C. Module và bước triển khai
 
@@ -1562,7 +1698,7 @@ Nội dung nguyên văn từng dòng ở bản chép brief (Phụ lục D). Cộ
 | B-03 | Asset ID và QR Code | M03, M04 | F-AST-01, F-QR-01 |
 | B-04 | Tên, loại, serial, hình ảnh | M02, M03 | F-MDM-04, F-AST-01, F-AST-03 |
 | B-05 | Ngày mua, nhà cung cấp, invoice hoặc PO | M02, M03 | F-MDM-05, F-AST-01 |
-| B-06 | Nguyên giá, khấu hao, giá trị còn lại | M03, M09 | F-AST-04, F-DEP-03 |
+| B-06 | Nguyên giá, khấu hao, giá trị còn lại | M03, M09 | F-AST-04, F-DEP-03 (GĐ1 chỉ có nguyên giá; khấu hao, giá trị còn lại ở GĐ2) |
 | B-07 | Location, cost center, người quản lý | M02, M03 | F-MDM-01, F-MDM-03, F-AST-01, F-AST-05 |
 | B-08 | Hồ sơ, chứng từ liên quan | M03 | F-AST-06 |
 | B-09 | Sáu trạng thái tài sản | M03, M08 | F-AST-09, F-DSP-03, F-DSP-05 |
@@ -1596,7 +1732,7 @@ Nội dung nguyên văn từng dòng ở bản chép brief (Phụ lục D). Cộ
 | B-37 | Không bao giờ xoá lịch sử | M12 | F-AUD-01 |
 | B-38 | Lưu Ai, Khi nào, Thay đổi gì, Trước/Sau, Lý do | M12 | F-AUD-01, F-AUD-02 |
 | B-39 | Phân quyền theo vai trò và theo location | M01 | F-IAM-04 |
-| B-40 | North Star: quét là biết đủ và thấy toàn bộ lịch sử | M03, M04 | F-QR-04, F-AST-08 |
+| B-40 | North Star: quét là biết đủ và thấy toàn bộ lịch sử | M03, M04 | F-QR-04, F-AST-08 (GĐ1 phủ một phần: chưa có khấu hao, giá trị còn lại) |
 
 ## Phụ lục G. Giả định
 
@@ -1623,6 +1759,7 @@ Mỗi giả định được chấm hai thang. "Hậu quả nếu sai" tính the
 | A-13 | TSCĐ và CCDC quản lý chung một sổ, phân biệt bằng loại | Thấp | Cao | 17 | Cho xem cây loại tài sản có cờ TSCĐ hoặc CCDC (F-MDM-04); hỏi có quy trình hay trường nào chỉ áp cho một nhóm không | Kế toán trưởng |
 | A-15 | Hệ thống cần dùng được trong toàn bộ giờ mở cửa | Thấp | Cao | 18 | Xin giờ mở, đóng cửa của từng loại điểm và giờ nhận hàng của kho, xưởng rang; dùng để đặt lịch bảo trì và giờ trực hypercare (Q-33) | Vận hành |
 | A-03 | Every Half đã có sổ TSCĐ và CCDC trên FAST | Thấp | Cao | 19 | Xin file xuất danh sách TSCĐ và CCDC từ FAST (dùng chung file của A-16); xem mỗi dòng có mã tài sản FAST không, vì GĐ2 cần mã này để liên kết | Kế toán trưởng |
+| A-20 | Mỗi loại đề nghị dùng người duyệt mặc định ở ma trận §8 cho tới khi có câu trả lời Q-08, Q-10, Q-36, Q-37 | Trung bình | Trung bình | 20 | Đưa ma trận §8 cho Ban giám đốc duyệt ở G1, ghi lại dòng nào đổi | Ban giám đốc |
 
 Năm giả định đầu bảng cần câu trả lời trước kick-off:
 
@@ -1677,6 +1814,10 @@ Câu hỏi cần trả lời trước cổng G0 và G1 có ảnh hưởng lớn 
 | Q-37 | Báo giá sửa chữa từ mức nào cần duyệt trước khi sửa, và ai duyệt? | Ban giám đốc, Vận hành | G1 |
 | Q-38 | Ảnh bằng chứng kiểm kê và ảnh báo hỏng lưu trong bao lâu? | Vận hành, Pháp chế | G4 |
 | Q-39 | Khi có sự cố, chấp nhận mất tối đa bao nhiêu giờ dữ liệu và chờ khôi phục tối đa bao lâu? | Ban giám đốc, IT | G4 |
+| Q-40 | Lời mời kích hoạt tài khoản có hiệu lực bao lâu; nhân viên không có email công ty đăng nhập và kích hoạt bằng cách nào? | IT, Nhân sự | G1 |
+| Q-41 | Nhân viên nghỉ việc mà còn tài sản đang chịu trách nhiệm thì chặn việc cho nghỉ hay cho nghỉ rồi giao tạm cho Quản lý điểm; nhân viên quay lại làm thì mở lại hồ sơ cũ hay tạo hồ sơ mới? | Vận hành, Nhân sự | G1 |
+| Q-42 | Every Half có những phòng ban và loại hình làm việc nào; ai tạo tài khoản cho nhân viên mới (IT hay Nhân sự)? | Nhân sự | G1 |
+| Q-43 | Hypercare kết thúc khi số yêu cầu hỗ trợ mỗi tuần dưới mức nào? | Ban giám đốc, Vận hành | G6 |
 
 ## Phụ lục I. Rủi ro, phụ thuộc và quyết định
 
@@ -1716,6 +1857,7 @@ Câu hỏi cần trả lời trước cổng G0 và G1 có ảnh hưởng lớn 
 | D-08 | Nguyên giá và giá trị còn lại chỉ hiện với năm vai trò ở BR-CMN-06 | Đề xuất, chờ Q-16 | §14 |
 | D-09 | Quản lý cửa hàng, thủ kho, quản lý xưởng rang, người phụ trách văn phòng dùng chung vai trò Quản lý điểm | Đề xuất | §8 |
 | D-10 | Lộ trình tính theo tuần kể từ kick-off; go-live theo đợt, pilot trước | Đề xuất, chờ Q-24 | §33 |
+| D-11 | Quản lý nhân viên theo mẫu FDI Today: tạo nhân viên bằng wizard 4 bước gửi một lệnh, hồ sơ nhân viên có trường công việc, sơ đồ tổ chức dựng từ cấp trên trực tiếp. Kích hoạt bằng lời mời qua email; mật khẩu tạm chỉ dùng cho người không có email và phải đổi ở lần đăng nhập đầu | Đề xuất, chờ Q-40 | §14.1 |
 
 ## Phụ lục J. Thuật ngữ
 
@@ -1763,8 +1905,8 @@ Use case dùng đúng tên màn hình ở cột "Màn hình".
 | SCR-02 | Quên mật khẩu | Mọi người dùng | M01 | Điện thoại, máy tính |
 | SCR-03 | Đặt lại mật khẩu | Mọi người dùng | M01 | Điện thoại, máy tính |
 | SCR-04 | Hồ sơ cá nhân | Mọi người dùng | M01 | Điện thoại, máy tính |
-| SCR-05 | Danh sách người dùng | Quản trị hệ thống | M01 | Máy tính |
-| SCR-06 | Chi tiết người dùng | Quản trị hệ thống | M01 | Máy tính |
+| SCR-05 | Danh sách nhân viên | Quản trị hệ thống | M01 | Máy tính |
+| SCR-06 | Hồ sơ nhân viên | Quản trị hệ thống | M01 | Máy tính |
 | SCR-07 | Danh mục location | Quản trị hệ thống, Quản lý tài sản | M02 | Máy tính |
 | SCR-08 | Danh mục cost center | Quản trị hệ thống, Quản lý tài sản | M02 | Máy tính |
 | SCR-09 | Danh mục loại tài sản | Quản trị hệ thống, Quản lý tài sản | M02 | Máy tính |
@@ -1785,8 +1927,8 @@ Use case dùng đúng tên màn hình ở cột "Màn hình".
 | SCR-24 | Danh sách phiếu điều chuyển | Quản lý tài sản, Quản lý điểm | M06 | Máy tính |
 | SCR-25 | Tạo phiếu điều chuyển | Quản lý tài sản, Quản lý điểm | M06 | Máy tính, điện thoại |
 | SCR-26 | Chi tiết phiếu điều chuyển | Quản lý tài sản, Quản lý điểm | M06 | Máy tính, điện thoại |
-| SCR-27 | Xuất giao | Quản lý điểm | M06 | Điện thoại |
-| SCR-28 | Nhận hàng | Quản lý điểm | M06 | Điện thoại |
+| SCR-27 | Xuất giao | Quản lý điểm, Quản lý tài sản | M06 | Điện thoại |
+| SCR-28 | Nhận hàng | Quản lý điểm, Quản lý tài sản (xác nhận thay đơn vị sửa) | M06 | Điện thoại |
 | SCR-29 | Báo hỏng | Nhân viên điểm, Quản lý điểm | M07 | Điện thoại |
 | SCR-30 | Danh sách phiếu sửa chữa | Quản lý tài sản, Kỹ thuật viên | M07 | Máy tính |
 | SCR-31 | Chi tiết phiếu sửa chữa | Quản lý tài sản, Kỹ thuật viên, Quản lý điểm | M07 | Máy tính, điện thoại |
@@ -1803,3 +1945,7 @@ Use case dùng đúng tên màn hình ở cột "Màn hình".
 | SCR-42 | Nhật ký đồng bộ | Kế toán tài sản | M10 | Máy tính |
 | SCR-43 | Đối soát FAST | Kế toán tài sản, Kế toán trưởng | M10 | Máy tính |
 | SCR-44 | Bảng khấu hao | Kế toán tài sản, Kế toán trưởng | M09 | Máy tính |
+| SCR-45 | Thêm nhân viên | Quản trị hệ thống | M01 | Máy tính |
+| SCR-46 | Sơ đồ tổ chức | Quản trị hệ thống, Ban giám đốc | M01 | Máy tính |
+| SCR-47 | Kích hoạt tài khoản | Người được mời | M01 | Điện thoại, máy tính |
+| SCR-48 | Danh mục phòng ban | Quản trị hệ thống | M02 | Máy tính |
