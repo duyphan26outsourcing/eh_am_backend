@@ -6,11 +6,13 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ErrorCode } from '@/common/i18n/error-code.const';
 import { type PaginatedResult } from '@/common/interfaces/paginated-result.interface';
 import { SupabaseAdminService } from '@/supabase/supabase-admin.service';
-import { ROLE_CATALOG } from '@/utils/enums/role.enum';
+import { ROLE_CATALOG, Role } from '@/utils/enums/role.enum';
 import { sanitizeSearchTerm } from '@/utils/utils';
 import { type AuthRequest } from '@/auth/auth.interface';
 import { type CreateEmployeeDto } from './dto/create-employee.dto';
+import { type GrantRoleAssignmentDto } from './dto/grant-role-assignment.dto';
 import { type ListEmployeesQueryDto } from './dto/list-employees.dto';
+import { type RevokeRoleAssignmentDto } from './dto/revoke-role-assignment.dto';
 import {
   normalizeEmployeeCode,
   normalizeEmployeeEmail,
@@ -18,10 +20,16 @@ import {
   optionalTrim,
   resolveInitialRoleContext,
 } from './employee-normalization';
+import { resolveGrantRoleInput } from './employee-role-assignment';
 import {
   type CreatedEmployeeModel,
+  type EmployeeAccessModel,
   type EmployeeListItemModel,
+  type ResendEmployeeInviteRow,
+  type ResentEmployeeInviteModel,
+  type RoleAssignmentModel,
   toEmployeeListItemModel,
+  toRoleAssignmentModel,
 } from './employee.model';
 import { EmployeesRepository } from './employees.repository';
 
@@ -80,6 +88,124 @@ export class EmployeesService {
       ...page,
       items: page.items.map(toEmployeeListItemModel),
     };
+  }
+
+  async getAccess(employeeId: string): Promise<EmployeeAccessModel> {
+    const profile = await this.repository.findAccessProfile(employeeId);
+    if (!profile) throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
+    const [assignments, locations] = await Promise.all([
+      this.repository.findRoleAssignments(employeeId),
+      this.repository.listActiveLocations(),
+    ]);
+    return {
+      employee: {
+        id: profile.id,
+        displayName: profile.display_name,
+        employeeCode: profile.employee_code,
+        status: profile.status,
+      },
+      assignments: assignments.map((row) => toRoleAssignmentModel(row)),
+      options: {
+        // ⚠️ Không cấp SYSTEM_ADMIN qua giao diện (BR-IAM-05); chỉ các vai trò assignable.
+        roles: ROLE_CATALOG.filter(
+          (role) => role.assignable && role.code !== Role.SYSTEM_ADMIN,
+        ).map((role) => ({
+          code: role.code,
+          nameVi: role.nameVi,
+          nameEn: role.nameEn,
+          contextType: role.contextType,
+        })),
+        locations,
+      },
+    };
+  }
+
+  async grantRoles(
+    employeeId: string,
+    dto: GrantRoleAssignmentDto,
+    commandKey: string,
+    req: AuthRequest,
+  ): Promise<RoleAssignmentModel[]> {
+    const profile = await this.repository.findAccessProfile(employeeId);
+    if (!profile) throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
+    // ⚠️ Lớp chặn ở service (RPC không tự kiểm actor): nhân viên đích phải Đang hoạt động (EX.2).
+    if (profile.status !== 'ACTIVE') {
+      throw new AppException(ErrorCode.ACCOUNT_INACTIVE, {
+        status: profile.status,
+      });
+    }
+    const resolved = resolveGrantRoleInput({
+      roleCode: dto.roleCode,
+      contextIds: dto.contextIds,
+      effectiveFrom: dto.effectiveFrom,
+      effectiveTo: dto.effectiveTo,
+    });
+    const audit = auditContextOf(req);
+    const rows = await this.repository.grantRolesViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_role_code: resolved.role.code,
+      p_context_type: resolved.role.contextType,
+      p_context_ids: resolved.contextIds,
+      p_effective_from: resolved.effectiveFrom,
+      p_effective_to: resolved.effectiveTo,
+      p_reason: dto.reason,
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+    return rows.map((row) =>
+      toRoleAssignmentModel({
+        id: row.id,
+        role_code: row.role_code,
+        context_type: row.context_type,
+        context_id: row.context_id,
+        effective_from: row.effective_from,
+        effective_to: row.effective_to,
+        grant_reason: row.grant_reason,
+        revoked_by: null,
+        location_code: null,
+        location_name: null,
+      }),
+    );
+  }
+
+  async revokeRole(
+    employeeId: string,
+    assignmentId: string,
+    dto: RevokeRoleAssignmentDto,
+    commandKey: string,
+    req: AuthRequest,
+  ): Promise<RoleAssignmentModel> {
+    // ⚠️ Không chặn theo trạng thái tài khoản nhân viên: vẫn thu hồi được vai trò của người đang
+    // bị khoá/nghỉ. Mọi kiểm tra (dòng thuộc đúng nhân viên, chưa đóng, không phải SYSTEM_ADMIN)
+    // nằm trong RPC để một transaction vừa đóng hiệu lực vừa ghi audit (EX.1/EX.3/EX.6).
+    const audit = auditContextOf(req);
+    const row = await this.repository.revokeRoleViaRpc({
+      p_command_key: commandKey,
+      p_assignment_id: assignmentId,
+      p_employee_id: employeeId,
+      p_reason: dto.reason,
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+    return toRoleAssignmentModel({
+      id: row.id,
+      role_code: row.role_code,
+      context_type: row.context_type,
+      context_id: row.context_id,
+      effective_from: row.effective_from,
+      effective_to: row.effective_to,
+      grant_reason: row.grant_reason,
+      revoked_by: row.revoked_by,
+      location_code: null,
+      location_name: null,
+    });
   }
 
   async create(
@@ -260,6 +386,69 @@ export class EmployeesService {
     return this.toModel(created, dto.activationMethod, invitation);
   }
 
+  async resendInvite(
+    employeeId: string,
+    commandKey: string,
+    req: AuthRequest,
+  ): Promise<ResentEmployeeInviteModel> {
+    const replay = await this.repository.findResendReceipt(
+      commandKey,
+      req.user.sub,
+      employeeId,
+    );
+    if (replay) return this.resolveResendReplay(replay);
+
+    const audit = auditContextOf(req);
+    const row = await this.repository.resendInviteViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_invite_token_hash: createHash('sha256')
+        .update(randomBytes(32))
+        .digest('hex'),
+      p_invite_expires_at: new Date(
+        Date.now() + this.invitationTtlMs(),
+      ).toISOString(),
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+    if (row.is_replay) return this.resolveResendReplay(row);
+
+    // ⚠️ Giao dịch DB đã commit trước khi gọi nhà cung cấp. Nếu gửi lỗi, không được xoá lời
+    // mời mới hoặc khôi phục lời mời cũ; lần bấm mới sẽ tạo một command key mới.
+    const { error } =
+      await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(
+        row.work_email,
+        {
+          data: { display_name: row.display_name },
+          redirectTo: `${this.resolveAppUrl()}/activate-account`,
+        },
+      );
+    if (error) {
+      await this.repository.markInviteDelivery(commandKey, 'FAILED', {
+        actorId: req.user.sub,
+        actorLabel: audit.actorLabel ?? '',
+        requestId: audit.requestId ?? '',
+        ipAddress: audit.ipAddress,
+        userAgent: audit.userAgent ?? '',
+      });
+      this.logger.error(
+        `Không gửi được lời mời kích hoạt lại: employee=${employeeId}`,
+      );
+      throw new AppException(ErrorCode.EMAIL_SEND_FAILED);
+    }
+    await this.repository.markInviteDelivery(commandKey, 'SENT', {
+      actorId: req.user.sub,
+      actorLabel: audit.actorLabel ?? '',
+      requestId: audit.requestId ?? '',
+      ipAddress: audit.ipAddress,
+      userAgent: audit.userAgent ?? '',
+    });
+    return this.toResentInviteModel(row);
+  }
+
   private resolveAppUrl(): string {
     const appUrl = this.config.get<string>('APP_URL')?.trim();
     if (appUrl) return appUrl.replace(/\/+$/, '');
@@ -309,6 +498,31 @@ export class EmployeesService {
       status: row.status,
       activationMethod,
       invitationEmailSent,
+    };
+  }
+
+  private resolveResendReplay(
+    row: ResendEmployeeInviteRow,
+  ): ResentEmployeeInviteModel {
+    if (row.delivery_status === 'FAILED') {
+      throw new AppException(ErrorCode.EMAIL_SEND_FAILED);
+    }
+    if (row.delivery_status !== 'SENT') {
+      throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+    }
+    return this.toResentInviteModel(row);
+  }
+
+  private toResentInviteModel(
+    row: ResendEmployeeInviteRow,
+  ): ResentEmployeeInviteModel {
+    return {
+      employeeId: row.employee_id,
+      displayName: row.display_name,
+      email: row.work_email,
+      inviteId: row.invite_id,
+      sentAt: row.sent_at,
+      expiresAt: row.expires_at,
     };
   }
 }

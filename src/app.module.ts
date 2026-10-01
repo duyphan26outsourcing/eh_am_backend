@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { MasterDataModule } from './master-data/master-data.module';
 import { EmployeesModule } from './employees/employees.module';
+import { OrgChartModule } from './org-chart/org-chart.module';
 
 /**
  * ============================================================================
@@ -73,6 +74,7 @@ import { EmployeesModule } from './employees/employees.module';
     // Module nghiệp vụ
     MasterDataModule,
     EmployeesModule,
+    OrgChartModule,
   ],
   controllers: [AppController],
   providers: [

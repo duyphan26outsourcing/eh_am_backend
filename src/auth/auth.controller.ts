@@ -42,7 +42,6 @@ import {
  * | --------------------- | ----- | ----- |
  * | `activation/preview`  | ❌    | Access token từ email mời là bằng chứng |
  * | `activation/complete` | ❌    | Như trên; người dùng chưa có phiên EH-AM |
- * | `resend-confirmation` | ❌    | Chưa xác nhận email thì chưa đăng nhập được |
  * | `login`               | ❌    | Người gọi chưa có token |
  * | `refresh`             | ❌    | Access token **đã hết hạn** — đó là lý do họ gọi |
  * | `forgot-password`     | ❌    | Không đăng nhập được nên mới cần |
@@ -91,30 +90,6 @@ export class AuthController {
   // =========================================================================
   // TẠO TÀI KHOẢN VÀ ĐĂNG NHẬP
   // =========================================================================
-
-  /**
-   * Gửi lại email xác nhận đăng ký — **không có guard**.
-   *
-   * ⚠️ Endpoint này bắt buộc phải có, không phải tiện ích. `auth.admin.createUser()` không tự
-   * gửi email, nên `register()` gọi `resend()` riêng — và bước đó có thể thất bại **mà không**
-   * rollback tài khoản. Không có endpoint này thì người đó bị mắc vĩnh viễn: có tài khoản,
-   * không xác nhận được, không đăng nhập được, không đăng ký lại được.
-   *
-   * Dùng `THROTTLE_EMAIL` (5 lần/giờ) như `forgot-password`: mỗi lần gọi là một thư gửi tới
-   * địa chỉ **do client chỉ định**. Xem chú thích ở `THROTTLE_EMAIL`.
-   *
-   * Dùng lại `ForgotPasswordDto` vì hình dạng đầu vào giống hệt (chỉ một trường `email` đã
-   * validate).
-   */
-  @Post('resend-confirmation')
-  @HttpCode(200)
-  @Throttle({ default: THROTTLE_EMAIL })
-  async resendConfirmation(
-    @Body() dto: ForgotPasswordDto,
-    @Req() req: Request,
-  ) {
-    return this.authService.resendConfirmationEmail(dto, req);
-  }
 
   /**
    * Đăng nhập.

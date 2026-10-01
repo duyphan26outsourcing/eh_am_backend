@@ -76,15 +76,20 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
     });
 
     it.each([
-      ['post', '/v1/auth/register'],
       ['post', '/v1/auth/login'],
       ['post', '/v1/auth/refresh'],
       ['post', '/v1/auth/forgot-password'],
       ['post', '/v1/auth/reset-password'],
-      ['post', '/v1/auth/resend-confirmation'],
     ] as const)('%s %s tồn tại (không 404)', async (method, path) => {
       const res = await request(server)[method](path).send({});
       expect(res.status).not.toBe(404);
+    });
+
+    it('POST /v1/auth/resend-confirmation đã đóng', async () => {
+      await request(server)
+        .post('/v1/auth/resend-confirmation')
+        .send({})
+        .expect(404);
     });
   });
 
@@ -98,6 +103,11 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
       ['post', '/v1/auth/logout'],
       ['post', '/v1/auth/logout-all'],
       ['post', '/v1/auth/change-password'],
+      ['get', '/v1/org-chart'],
+      [
+        'post',
+        '/v1/employees/11111111-1111-4111-8111-111111111111/resend-invite',
+      ],
     ] as const)('%s %s không token → 401', async (method, path) => {
       const res = await request(server)[method](path).send({});
       expect(res.status).toBe(401);
@@ -195,96 +205,6 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
   // =========================================================================
   // 4. Validation
   // =========================================================================
-
-  describe('Validation — đăng ký', () => {
-    const valid = {
-      email: 'nguoi.dung@example.com',
-      password: VALID_PASSWORD,
-      displayName: 'Nguyễn Văn A',
-    };
-
-    it('body rỗng → 400', async () => {
-      const res = await request(server).post('/v1/auth/register').send({});
-      expect(res.status).toBe(400);
-      expect(res.body.code).toBe('VALIDATION_FAILED');
-    });
-
-    it('⚠️ trả VỀ TẤT CẢ lỗi, không dừng ở lỗi đầu tiên', async () => {
-      // `stopAtFirstError: false`. Người dùng sửa một lần xong cả form, không phải submit năm
-      // lần để phát hiện năm lỗi.
-      const res = await request(server).post('/v1/auth/register').send({});
-
-      expect(Array.isArray(res.body.errors)).toBe(true);
-      expect(res.body.errors.length).toBeGreaterThan(1);
-    });
-
-    it('email sai định dạng → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, email: 'khong-phai-email' });
-      expect(res.status).toBe(400);
-    });
-
-    it('mật khẩu 7 ký tự → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, password: 'Ab#1234' });
-      expect(res.status).toBe(400);
-    });
-
-    it('⚠️ mật khẩu 73 ký tự → 400 (KHÔNG âm thầm cắt ở 72)', async () => {
-      // 72 byte là giới hạn của bcrypt. Cắt âm thầm nghĩa là người dùng đặt mật khẩu 80 ký tự
-      // nhưng chỉ 72 ký tự đầu có tác dụng — và họ không biết.
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, password: 'Ab#1' + 'x'.repeat(69) });
-      expect(res.status).toBe(400);
-    });
-
-    it('mật khẩu thiếu số → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, password: 'MatKhau#Dai' });
-      expect(res.status).toBe(400);
-    });
-
-    it('mật khẩu thiếu ký tự đặc biệt → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, password: 'MatKhau2026' });
-      expect(res.status).toBe(400);
-    });
-
-    it('⚠️ mã nhân viên có chữ có dấu → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, employeeCode: 'NV-Đông' });
-      expect(res.status).toBe(400);
-    });
-
-    it('mã nhân viên 1 ký tự → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, employeeCode: 'A' });
-      expect(res.status).toBe(400);
-    });
-
-    it('mã nhân viên mở đầu bằng dấu → 400', async () => {
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, employeeCode: '-EH0123' });
-      expect(res.status).toBe(400);
-    });
-
-    it('⚠️ trường lạ → 400 (forbidNonWhitelisted)', async () => {
-      // Một trường bị bỏ âm thầm (`originalCost` gõ thành `orginalCost`) sẽ tạo ra bản ghi
-      // thiếu dữ liệu mà client tưởng đã gửi đủ.
-      const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ ...valid, truongLa: 'x' });
-      expect(res.status).toBe(400);
-    });
-  });
 
   describe('Validation — làm mới phiên', () => {
     it('thiếu refreshToken → 400', async () => {
@@ -424,37 +344,6 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
   });
 
   // =========================================================================
-  // 7. Giới hạn tần suất
-  // =========================================================================
-
-  describe('⚠️ Giới hạn tần suất — 429 có Retry-After và câu thông báo có số giây thật', () => {
-    it('register 5 lần / 10 phút: lần thứ 6 → 429', async () => {
-      for (let i = 0; i < 5; i++) {
-        const res = await request(server).post('/v1/auth/register').send({});
-        expect(res.status).toBe(400);
-      }
-
-      const blocked = await request(server)
-        .post('/v1/auth/register')
-        .set('Accept-Language', 'en')
-        .send({});
-
-      expect(blocked.status).toBe(429);
-      expect(blocked.body.code).toBe('TOO_MANY_REQUESTS');
-
-      const retryAfter = Number(blocked.headers['retry-after']);
-      expect(Number.isInteger(retryAfter)).toBe(true);
-      expect(retryAfter).toBeGreaterThanOrEqual(1);
-
-      // ⚠️ Codebase gốc trả nguyên văn "{seconds}" ở đây (dịch mã mà không có tham số). Câu
-      // phải có đúng con số, và đúng ngôn ngữ người dùng chọn.
-      expect(blocked.body.message).not.toContain('{seconds}');
-      expect(blocked.body.message).toContain(String(retryAfter));
-      expect(blocked.body.message).toContain('Too many requests');
-    });
-  });
-
-  // =========================================================================
   // 8. Header bảo mật
   // =========================================================================
 
@@ -484,7 +373,7 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
     });
 
     it('không lộ tên bảng, tên cột, hay chuỗi kết nối', async () => {
-      const res = await request(server).post('/v1/auth/register').send({});
+      const res = await request(server).post('/v1/auth/login').send({});
       const body = JSON.stringify(res.body).toLowerCase();
 
       expect(body).not.toContain('user_profiles');
@@ -495,8 +384,8 @@ describe('Auth contract (e2e, không cần Supabase)', () => {
 
     it('⚠️ không lộ mật khẩu vừa gửi lên', async () => {
       const res = await request(server)
-        .post('/v1/auth/register')
-        .send({ email: 'x', password: 'MatKhauBiMat#1', displayName: 'A' });
+        .post('/v1/auth/login')
+        .send({ email: 'x', password: 'MatKhauBiMat#1' });
 
       expect(JSON.stringify(res.body)).not.toContain('MatKhauBiMat');
     });

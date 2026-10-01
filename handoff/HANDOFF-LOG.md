@@ -14,7 +14,94 @@
 > ```
 
 ---
+
+## 2026-10-01 — Claude → Codex/Claude — Smoke script + UC-IAM-11 XONG CODE
+- Vừa xong 1: **`tools/smoke-employee-directory.mjs`** — smoke + seed cho các UC đã dev (IAM-05/15/07/09/10). HTTP qua admin login (`SMOKE_ADMIN_EMAIL/PASSWORD`, `API_BASE` mặc định :3006). Seed vài nhân viên mẫu (email cố định `smoke.dir.*`, idempotent); smoke IAM-15 (list + lọc status/employmentType/search + status ngoài miền 400), IAM-09 (org-chart 200), IAM-10 (access options loại SYSTEM_ADMIN + guard ACCOUNT_INACTIVE khi gán cho PENDING). Nhánh **cấp quyền thật** (happy-path migration 10) bật khi có `SUPABASE_URL/SUPABASE_SECRET_KEY`: tạo + kích hoạt 1 nhân viên ACTIVE mẫu (`smoke.dir.active@example.com` / `SmokeEH#2026aA`) rồi cấp LOCATION_MANAGER + verify. IAM-07 resend **gửi email thật** → chỉ chạy khi `SMOKE_ALLOW_INVITE_EMAILS=true`. `node --check` OK; Duy chạy để seed + kiểm (cần server :3006 chạy).
+- Vừa xong 2: **UC-IAM-11 — Thu hồi vai trò theo location**, đủ plan BE + FE + `DESIGN-README.md`, TDD, review (DB + security), verify.
+  - BE: `POST /v1/employees/:id/role-assignments/:assignmentId/revoke` (SYSTEM_ADMIN/PLATFORM, THROTTLE_WRITE, Idempotency-Key). RPC **migration 11** `revoke_role_assignment`: đóng hiệu lực một dòng (`effective_to`+`revoked_by`+`revoke_reason`) đúng một lần, cùng transaction với audit `iam.role.revoked`. Khoá `FOR UPDATE`; kiểm dòng thuộc đúng nhân viên (chống IDOR); chặn SYSTEM_ADMIN (ROLE_NOT_REVOCABLE 409); chặn đã-đóng/quá-hạn trước UPDATE (HISTORY_IMMUTABLE 409); dòng Sắp hiệu lực đóng tại `effective_from` (AC.1). Receipt dùng chung (nới `operation` thêm REVOKE + cột `assignment_id`). ErrorCode mới `ROLE_NOT_REVOCABLE`. `database.types.ts` thêm tay `revoke_role_assignment` (gen:types sẽ ghi đè sau khi chạy migration 11).
+  - FE: thêm `revokeRoleAssignment` api, `revoke-role-dialog.tsx` (xác nhận + lý do bắt buộc), cột **Thao tác** + nút **Thu hồi** trên access page (ẩn với SYSTEM_ADMIN và dòng đã đóng — chỉ là tiện ích, server vẫn chặn). i18n `employees.access.revoke.*` + `columns.actions` (vi+en). `roleAssignmentStatus` đổi `<`→`<=` cho khớp DB.
+  - Review: DB-reviewer + security-reviewer **không CRITICAL/HIGH/MEDIUM**. Đã áp 4 fix low: DTO `@MaxLength` thêm message token; dialog `key={assignmentId}` tránh stale Idempotency-Key; audit exception giữ `sqlerrm` ở detail; status `<=`.
+- Kiểm chứng: BE `tsc` 0 · eslint 0 · Jest **119/119** · build. FE typecheck 0 · lint 0 error/9 warning TanStack cố hữu · Vitest **167/167** · Vite build xanh.
+- Duy đã manual test: chưa (Duy bảo cứ làm tiếp, test sau).
+- Migration: **09, 10, 11 Duy ĐÃ CHẠY** (11 = bản đã gồm fix `using detail = sqlerrm`). Nên chạy `npm run gen:types` để đồng bộ `database.types.ts` (hiện đã thêm tay `revoke_role_assignment`, khớp signature — không chạy cũng compile được).
+- Làm tiếp (CHO CODEX — theo thứ tự này): **UC-IAM-12 (khoá/mở khoá tài khoản)** → **08 (cập nhật hồ sơ)** → **13 (nghỉ việc)** → **14 (hồ sơ cá nhân + đổi ngôn ngữ)**. Xong hết M01 rồi mới sang M03 (Duy cần gấp M03/M04).
+  - **Mẫu copy tốt nhất cho UC-12/13**: chính UC-IAM-11 vừa xong (RPC đóng/đổi trạng thái + audit cùng transaction + idempotency receipt + guard SYSTEM_ADMIN/PLATFORM + ánh xạ lỗi ở `handleXxxRpcError`). UC-12 = đổi `user_profiles.status` ACTIVE↔SUSPENDED có lý do + audit; UC-13 = chuyển `DEACTIVATED` + đóng mọi vai trò đang mở (tái dùng ý tưởng close-only của revoke).
+  - File hay đụng: BE `src/employees/{employees.controller,employees.service,employees.repository}.ts`, `src/common/i18n/error-code.const.ts`, `src/supabase/database.types.ts` (thêm tay function mới), migration mới **12_...sql** (01–11 KHÔNG sửa). FE `src/lib/api/employees.api.ts`, `src/features/employees/...`, i18n `src/lib/i18n/locales/{vi,en}.ts`.
+  - Đọc UC ở `business/product-docs/product-usecase/M01-nguoi-dung-phan-quyen/UC-IAM-12_khoa-hoac-mo-khoa-tai-khoan.md` (và 08/13/14).
+- Verify lệnh: BE `npx tsc --noEmit && npx eslint src test && npx jest`; FE (repo `eh_am_frontend`) `npx tsc -b --noEmit && npx eslint . && npx vitest run --browser.headless && npx vite build`.
+- Bẫy/lưu ý: migrations **01–11 đã chạy, KHÔNG sửa** (sai thì viết migration mới). Mọi RPC mới PHẢI `revoke all ... from public, anon, authenticated; grant execute ... to service_role`. Enum→i18n bắt buộc vi+en cùng khoá. Không commit. Smoke script `tools/smoke-employee-directory.mjs` để lại dữ liệu mẫu (không dọn) — chủ ý để manual test; chạy cần server :3006 + env `SMOKE_ADMIN_EMAIL/PASSWORD` (+ `SUPABASE_*` cho nhánh cấp quyền, `SMOKE_ALLOW_INVITE_EMAILS=true` cho IAM-07). GateGuard hook (ECC) bắt nêu facts trước mỗi lần tạo/sửa file đầu tiên — Codex cứ nêu rồi retry.
+
+## 2026-10-02 — Codex → Claude/Codex — UC-IAM-09 XONG CODE
+- Vừa xong: **UC-IAM-09 — Xem sơ đồ tổ chức**, đủ plan BE + plan FE + `DESIGN-README.md`, TDD, review và verify.
+  - BE: `GET /v1/org-chart`, guard `SYSTEM_ADMIN|EXECUTIVE` / `PLATFORM`; projection tối thiểu không email/số điện thoại; loại `DEACTIVATED`; giữ nhãn `PENDING_ACTIVATION`/`SUSPENDED`; phát hiện vòng cấp trên bằng DFS, tách mọi thành viên vòng vào danh sách cần sửa nhưng vẫn trả phần cây lành; liệt kê người ACTIVE thiếu cấp trên/đơn vị. Đây là luồng đọc nên không audit và không migration.
+  - FE: route `/organization-chart`, menu đúng hai vai trò; canvas **`@xyflow/react` 12.11.2** theo pattern FDI Today (tidy-tree tất định, pan/zoom, Controls, smooth-step edges, node không kéo/nối); tìm tên không dấu/mã, 0 kết quả không làm mờ cả cây, giới hạn độ sâu, mở/gập nhánh, panel dữ liệu cần hoàn thiện, i18n vi/en và touch target/a11y. SYSTEM_ADMIN mở danh sách nhân viên đã lọc; EXECUTIVE mở chi tiết tại chỗ.
+  - `@xyflow/react` được thêm vào `package.json`/lockfile. `npm install` báo audit hiện có 9 vấn đề (6 moderate, 3 high); chưa tự chạy `npm audit fix` vì có thể đổi dependency ngoài phạm vi.
+- Kiểm chứng: BE `tsc` 0 · eslint 0 · Jest **108/108** · auth-contract e2e **44/44** · Nest build xanh. FE typecheck 0 · lint 0 error/8 warning TanStack/RHF cố hữu · Vitest **163/163** · Vite build xanh. Impeccable detector cho feature UC-09: `[]`.
+- Duy đã manual test: chưa.
+- Migration cần Duy chạy: không có migration mới cho UC-09. Migration **07** của UC-IAM-07 vẫn cần chạy + `npm run gen:types`.
+- Đang dở / chưa xong: chưa chụp render thật do Chrome DevTools MCP đang bị profile-lock từ một browser process đã chạy sẵn; automated compile/test/build đều xanh.
+- Làm tiếp: **UC-IAM-10**, sau đó 11 → 12 → 13 → 14; không sang M03 trước khi xong chuỗi này.
+- Bẫy/lưu ý: migrations 01–06 đã chạy, không sửa. Không commit. UC-IAM-08 chưa có route hồ sơ chỉnh sửa nên UC-09 chủ động không tạo link chết/API ghi thay thế.
  
+## 2026-10-02 — Codex → Claude/Codex — UC-IAM-07 XONG CODE, chờ chạy migration 07
+- Vừa xong: **UC-IAM-07 — Gửi lại lời mời kích hoạt**, đủ plan BE + plan FE + `DESIGN-README.md`, TDD và review.
+  - BE: `POST /v1/employees/:id/resend-invite` (SYSTEM_ADMIN/PLATFORM, `THROTTLE_EMAIL`, Idempotency-Key); RPC transaction thu hồi lời mời cũ, tạo lời mời mới, audit và receipt. Replay không gửi thêm email. Email lỗi giữ lời mời mới, đánh dấu `FAILED`, ghi audit lỗi và trả `EMAIL_SEND_FAILED`; trạng thái không còn phù hợp trả `ACCOUNT_STATE_CONFLICT` 409.
+  - Bảo mật: email lấy từ hồ sơ; không log/audit token hoặc link; hai RPC mới revoke `public, anon, authenticated`, chỉ grant `service_role`. Route công khai cũ `/v1/auth/resend-confirmation` đã đóng.
+  - FE: bật action trên `/employees` chỉ cho `PENDING_ACTIVATION` có lời mời email; dialog xác nhận nói rõ link cũ mất hiệu lực; loading/a11y, idempotency UUID, toast riêng cho success/conflict/email lỗi/kết quả chưa chắc chắn; vi/en đã humanize.
+- Kiểm chứng: BE `tsc` 0 · eslint 0 · Jest **105/105** · auth-contract e2e **43/43** · Nest build xanh. FE typecheck 0 · lint 0 error/8 warning TanStack/RHF cố hữu · Vitest **158/158** · Vite build xanh. `git diff --check` sạch.
+- Duy đã manual test: chưa.
+- Migration cần Duy chạy: **`sql-docs/migrations/07_resend_activation_invite.sql`**, sau đó `npm run gen:types`. `src/supabase/database.types.ts` đã cập nhật tay để full-flow không bị chặn; gen sẽ ghi đè bằng type thật.
+- Làm tiếp: theo chỉ đạo mới của Duy, hoàn tất các UC M01 còn lại trước M03/M04; bắt đầu **UC-IAM-09 — Xem sơ đồ tổ chức** (UC-IAM-15 đã xong). Vẫn xử lý tuần tự từng UC theo đọc UC → plan BE/FE + wireframe → TDD → review → verify.
+- Bẫy/lưu ý: migrations 01–06 đã chạy, không sửa. Migration 07 chưa chạy nên runtime resend sẽ chưa hoạt động. Không commit. Supabase Auth hiện tại hỗ trợ mời lại user chưa xác nhận và thay confirmation token; tiếp tục dùng `admin.inviteUserByEmail`, không tự đưa token vào URL.
+
+## 2026-10-02 (khuya) — Claude → Duy/Codex — UC-IAM-10 (gán vai trò) WIRE XONG BE+FE
+Codex mới scaffold UC-IAM-10 (migration 08 + DTO + helper) nhưng chưa wire. Claude đã **hoàn thiện end-to-end** (Duy đã chạy SQL 07+08; cho phép làm tiếp không chờ manual test).
+- **Migration mới `10_grant_role_assignments_fix.sql`** (sửa các finding review của 08, create or replace): overlap range `'[)'` (hết chặn nhầm bàn giao end=start); idempotency **gắn payload** (thêm cột role_code/context_type/context_ids/effective_from/effective_to vào `role_assignment_command_receipts`, cùng key khác payload → `IDEMPOTENCY_KEY_REUSED`); null-safe `p_role_code/p_context_type/p_context_ids`; `for share` trên locations; bỏ lock thừa; revoke public/anon/authenticated + grant service_role.
+- **BE**: endpoint `GET /v1/employees/:id/access` (hồ sơ tối thiểu + lịch sử vai trò + options role/location) và `POST /v1/employees/:id/role-assignments` (SYSTEM_ADMIN/PLATFORM, THROTTLE_WRITE, Idempotency-Key). Service pre-check nhân viên đích ACTIVE (EX.2 → ACCOUNT_INACTIVE), `resolveGrantRoleInput` (chặn SYSTEM_ADMIN/non-assignable, ép context PLATFORM nil, staff 1 location, biên ngày GMT+7). Repo `findAccessProfile/findRoleAssignments(join location thủ công vì context_id không FK)/listActiveLocations/grantRolesViaRpc`. Mã lỗi mới `ROLE_ASSIGNMENT_EXISTS`(409, EX.3) + `LOCATION_STAFF_SCOPE_CONFLICT`(409, EX.5). Model `RoleAssignmentModel/EmployeeAccessModel` + `toRoleAssignmentModel` (status qua `roleAssignmentStatus`).
+- **FE**: route `/employees/$id` (trang Quyền truy cập — cũng là đích điều hướng khi bấm tên ở danh sách, lấp gap UC-IAM-14 tạm thời) + dialog "Gán vai trò" (SelectDropdown role, Checkbox đa location khi role LOCATION, DateField ngày theo chuẩn #11, Textarea lý do, zod schema + test). i18n vi+en `employees.access.*`.
+- Kiểm chứng: BE **tsc 0 · eslint exit 0 · jest 114/114 · build xanh**. FE **typecheck 0 · lint 0 error (9 warning TanStack) · vitest 167/167 · build xanh**.
+- **Chờ Duy:** chạy `sql-docs/migrations/10_grant_role_assignments_fix.sql` (chữ ký hàm KHÔNG đổi → không bắt buộc gen:types; nhưng nên chạy để types bảng receipt khớp). Rồi manual test: mở danh sách → bấm tên → trang Quyền truy cập → Thêm vai trò (thử role platform + role location + staff nhiều location bị chặn + lý do bắt buộc). Và kiểm `rpc('grant_role_assignments')` bằng JWT authenticated phải 42501.
+- **Security-reviewer đã soát — không CRITICAL/HIGH.** Guard/scope đúng, không tin role/context từ client, không lộ PII ở `/access`, grants đúng. Đã sửa theo finding: **MEDIUM** (idempotency chưa gắn `reason` → thêm cột `reason` vào receipt + so khớp trong migration 10); **LOW-3** (thêm `@IsIn` vai trò assignable vào DTO `roleCode`); **LOW-2** (sort `contextIds` trong `resolveGrantRoleInput` để replay không phụ thuộc thứ tự). Verify lại BE tsc 0 · eslint 0 · jest 114/114.
+- **Quyết định chính sách cho Duy (chưa áp, reviewer nêu):** (a) MEDIUM-2 — không chặn tự-gán vai trò cho chính mình/step-up; super-admin vốn break-glass nên rủi ro thấp, nhưng nếu cần phân tách nhiệm vụ cho vai trò kế toán thì chặn `employeeId === actor` hoặc đánh dấu audit; (b) LOW-4 — cho phép backdating `effectiveFrom` quá khứ (đang audit lại); (c) LOW-5 — danh sách vai trò assignable đang lặp ở SQL (RPC) và `ROLE_CATALOG` TS, cần note/test khi thêm vai trò mới (RPC là phía chặt hơn nên drift fail-closed).
+- **Bẫy/lưu ý:** dialog dùng `SelectDropdown` ĐƯỢC vì nằm trong `FormField` (có form context) — khác trang danh sách phải dùng Select primitive. UC-IAM-10 EX.5 (staff chỉ 1 location) chặn ở helper + RPC. Không commit. Không sửa migration đã chạy (01–08; 09/10 Duy sẽ chạy).
+
+## 2026-10-02 (đêm) — Claude → Codex/Duy — Review UC-IAM-07/09/10 của Codex + migration 09 (sửa audit)
+Claude đã REVIEW toàn bộ phần Codex vừa làm (UC-IAM-07 resend invite, UC-IAM-09 org chart, UC-IAM-10 grant role) + chạy 2 reviewer (database + security). **Không CRITICAL/HIGH.** Đã verify lại sau khi Duy chạy SQL 07+08 + gen:types:
+- BE **tsc 0 · eslint exit 0 · jest 111/111 · nest build xanh** (đã sửa 3 prettier + 2 warning `no-unsafe-argument` trong `employee-role-assignment.spec.ts`).
+- FE **typecheck 0 · lint 0 error (8 warning TanStack) · vitest 163/163 · build xanh**.
+
+**Đã làm (an toàn, trong lúc Duy ngủ):** viết **migration `09_resend_invite_audit_fix.sql`** — `create or replace` lại `resend_employee_invite` sửa 2 lỗi MEDIUM vi phạm nguyên tắc audit:
+1. 07 revoke cả EXPIRED/REVOKED cũ (`where status <> 'ACCEPTED'`) → mất lịch sử. 09 chỉ revoke `SENT`/`ACTIVATING`.
+2. 07 ghi audit `before` cứng = 'REVOKED' + `replaced_invite_ids` = MỌI lời mời. 09 lấy đúng id + trạng thái trước qua `UPDATE … RETURNING` (CTE). Thêm null-safe expiry + `pg_temp` + `using detail=sqlerrm`.
+Chữ ký hàm không đổi → backend không cần sửa. **Duy chạy `09_resend_invite_audit_fix.sql` sau 08** (rồi `gen:types` — không bắt buộc vì chữ ký giữ nguyên).
+
+**CODEX LÀM TIẾP — UC-IAM-10 (gán vai trò) CHƯA WIRE:** migration 08 + `grant-role-assignment.dto.ts` + `employee-role-assignment.ts` (helper) + spec đã có, NHƯNG **chưa có endpoint/service** (không có route trong `employees.controller.ts`, không có method trong service). Phải wire:
+- Endpoint `POST /v1/employees/:id/role-assignments` (SYSTEM_ADMIN/PLATFORM, THROTTLE_WRITE, Idempotency-Key) → service gọi `grant_role_assignments` RPC.
+- **Service PHẢI tự enforce (reviewer yêu cầu):** chặn tự gán cho chính mình; vai trò PLATFORM cần quyền platform; (sau này) location manager chỉ gán trong location của họ. RPC không kiểm actor nên service là lớp chặn.
+- **Sửa migration 08 khi wire (viết migration 10 mới, KHÔNG sửa 08 đã chạy):** (a) overlap dùng `'[)'` thay `'[]'` (hiện chặn nhầm ca bàn giao end=start); (b) idempotency gắn payload (cùng command_key + payload khác hiện trả kết quả cũ như thành công — phải raise `IDEMPOTENCY_KEY_REUSED`); (c) null-safe `p_role_code/p_context_type/p_context_ids`; (d) `for share` trên locations; (e) bỏ `perform … for update` thừa trong loop.
+
+**Finding LOW còn lại (ghi để xử lý, chưa làm):**
+- Dead code: `AuthService.resendConfirmationEmail` (auth.service.ts:242) + `AuditEvent.AUTH_CONFIRMATION_EMAIL_RESENT` không còn route gọi (đã đóng theo D-01) → Codex xoá cho sạch, kẻo vô tình expose lại.
+- org-chart (UC-IAM-09): query không giới hạn → PostgREST cap ~1000 dòng có thể cắt cây âm thầm + `totals.people` sai. Nếu danh bạ lớn, cần phân trang/ngưỡng.
+- 07 (đã ở trong 09 không sửa): lỗi employee không tồn tại trả FK 23503 thay vì ACCOUNT_STATE_CONFLICT (LOW, backend có thể map). Để nguyên.
+
+**Nhịp rule:** UC-IAM-07/09/10 chờ Duy manual test. UC-IAM-10 chưa chạy được (chưa wire). Không commit. Không sửa migration đã chạy (01–08).
+
+## 2026-10-02 — Claude → Codex — UC-IAM-15 XONG CODE + migration đã chạy, sẵn sàng manual test
+- **Duy đã chạy migration `05_employee_directory.sql` + `06_rpc_execute_hardening.sql`** và `npm run gen:types`.
+  - `database.types.ts` giờ là bản sinh thật: có `list_employees` (Args/Returns đúng) và cả hàm `unaccent` trong `public` → xác nhận extension truy cập được, search không dấu chạy được.
+  - CLI sinh Args **không nullable** (`p_search: string`…) nên repo đã cast ở biên rpc: `… as Database['public']['Functions']['list_employees']['Args']` trong `src/employees/employees.repository.ts#listEmployees` (giống workaround `create_employee`). Postgres vẫn nhận NULL để bỏ lọc.
+- Kiểm chứng lại sau gen:types: BE **tsc 0 · eslint exit 0 · jest 100/100 · nest build xanh**. FE không đổi (typecheck 0 · lint 0 error/8 warning · vitest 157/157 · build xanh).
+- **Còn lại cho Duy:** manual test trang `/employees` (tìm không dấu, 5 bộ lọc, phân trang, lọc "Chờ kích hoạt" xem trạng thái lời mời). Nên kiểm lỗ hổng đã đóng: gọi `rpc('list_employees')` bằng JWT `authenticated` phải trả **42501 permission denied** (xác nhận migration 06 có tác dụng).
+- **CODEX LÀM TIẾP (chỉ sau khi Duy xác nhận manual test UC-IAM-15 ổn — nhịp rule):** **UC-IAM-07 (Gửi lại lời mời kích hoạt)**:
+  1. Đọc UC `product-usecase/M01-nguoi-dung-phan-quyen/UC-IAM-07_*.md` (lưu ý "Bao gồm UC-IAM-15" đã xong).
+  2. Viết plan BE + FE (README) — FE không cần màn mới, chỉ bật nút trên `/employees` (và hồ sơ sau này); vẫn theo chuẩn UI.
+  3. Migration mới (07): RPC tạo invite mới + đổi invite cũ của user sang trạng thái vô hiệu (REVOKED/REPLACED) + audit `iam.employee.invite_resent`, trong 1 transaction. **Nhớ `revoke … from public, anon, authenticated` + `grant … to service_role`** (xem migration 05/06).
+  4. Service: gọi RPC rồi `admin.inviteUserByEmail` lại (redirect `${APP_URL}/activate-account`), bù trừ nếu gửi mail lỗi (`EMAIL_SEND_FAILED` 502). Endpoint `POST /v1/employees/:id/resend-invite` (SYSTEM_ADMIN/PLATFORM, THROTTLE_EMAIL). Mã lỗi mới: `ACCOUNT_STATE_CONFLICT`(409) khi user không ở PENDING_ACTIVATION.
+  5. Đóng route công khai cũ `resend-confirmation` (D-01) nếu còn.
+  6. FE: bật nút "Gửi lại lời mời" (hiện disabled) trong `src/features/employees/list/employees-columns.tsx` → gọi mutation + toast; chỉ hiện cho dòng `PENDING_ACTIVATION`.
+- **Bẫy/lưu ý cho Codex:** trang danh sách dùng `Select` primitives (KHÔNG `SelectDropdown` — nó bọc `FormControl` cần form context). Dòng/tên nhân viên CHƯA điều hướng hồ sơ (UC-IAM-14 chưa có). Mọi RPC mới PHẢI revoke anon/authenticated. Không commit. Không sửa migration đã chạy (01–06).
+
 ## 2026-10-01 (khuya) — Claude → Duy/Codex — UC-IAM-15 (danh sách nhân viên) full BE+FE
 - **Vừa xong UC-IAM-15** theo đúng quy trình (đọc UC → plan BE/FE + DESIGN-README wireframe → TDD → verify).
   - Plan: `business/product-docs/product-implementation/UC-IAM-15/README.md` (BE) + FE `README.md` + `DESIGN-README.md`.

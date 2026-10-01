@@ -73,6 +73,7 @@ export const ErrorCode = {
   PROFILE_NOT_INITIALIZED: 'PROFILE_NOT_INITIALIZED',
   /** ⚠️ Có tham số `{status}` — dùng cho cả `SUSPENDED` và `DEACTIVATED`. */
   ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
+  ACCOUNT_STATE_CONFLICT: 'ACCOUNT_STATE_CONFLICT',
   EMPLOYEE_CODE_TAKEN: 'EMPLOYEE_CODE_TAKEN',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
   INVALID_SUPERIOR: 'INVALID_SUPERIOR',
@@ -84,6 +85,12 @@ export const ErrorCode = {
   SUPER_ADMIN_REQUIRED: 'SUPER_ADMIN_REQUIRED',
   GUARD_ORDER_ERROR: 'GUARD_ORDER_ERROR',
   ROLE_NOT_ASSIGNABLE: 'ROLE_NOT_ASSIGNABLE',
+  /** Đã có dòng phân quyền cùng vai trò, cùng phạm vi, khoảng hiệu lực chồng lấn (UC-IAM-10.EX.3). */
+  ROLE_ASSIGNMENT_EXISTS: 'ROLE_ASSIGNMENT_EXISTS',
+  /** Nhân viên điểm chỉ ở một location; đang có hiệu lực ở location khác (UC-IAM-10.EX.5). */
+  LOCATION_STAFF_SCOPE_CONFLICT: 'LOCATION_STAFF_SCOPE_CONFLICT',
+  /** SYSTEM_ADMIN chỉ thu hồi qua quy trình riêng, không qua màn hình (UC-IAM-11.EX.3, BR-IAM-18). */
+  ROLE_NOT_REVOCABLE: 'ROLE_NOT_REVOCABLE',
   REASON_INVALID: 'REASON_INVALID',
 
   // -------------------------------------------------------------------------
@@ -276,8 +283,8 @@ export const ERROR_DEFINITIONS = {
   EMAIL_SEND_FAILED: {
     status: HttpStatus.BAD_GATEWAY,
     messages: {
-      vi: 'Chưa gửi được email mời nên hồ sơ chưa được tạo. Vui lòng thử lại.',
-      en: 'The invitation email could not be sent, so the profile was not created. Please try again.',
+      vi: 'Chưa gửi được email mời. Vui lòng kiểm tra trạng thái mới nhất trước khi thử lại.',
+      en: 'The invitation email could not be sent. Check the latest status before trying again.',
     },
   },
   PASSWORD_CHANGE_REQUIRED: {
@@ -331,6 +338,13 @@ export const ERROR_DEFINITIONS = {
       en: 'This account is {status}, so the action cannot be completed. Please contact the system administrator.',
     },
   },
+  ACCOUNT_STATE_CONFLICT: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Tài khoản không còn ở trạng thái có thể gửi lại lời mời. Vui lòng làm mới danh sách để kiểm tra trạng thái mới nhất.',
+      en: 'This account can no longer receive a replacement invitation. Refresh the list to check its latest status.',
+    },
+  },
   EMPLOYEE_CODE_TAKEN: {
     status: HttpStatus.CONFLICT,
     messages: {
@@ -350,6 +364,20 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Cấp trên đã chọn không hợp lệ hoặc không còn hoạt động.',
       en: 'The selected manager is invalid or no longer active.',
+    },
+  },
+  ROLE_ASSIGNMENT_EXISTS: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Nhân viên đã có vai trò này trên cùng phạm vi trong khoảng thời gian đã chọn. Vui lòng xem lại tab vai trò.',
+      en: 'The employee already has this role on the same scope within the chosen period. Please review the roles tab.',
+    },
+  },
+  LOCATION_STAFF_SCOPE_CONFLICT: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Nhân viên điểm chỉ thuộc một địa điểm. Hãy thu hồi vai trò ở địa điểm cũ (UC-IAM-11) trước khi gán địa điểm mới.',
+      en: 'A location staff member belongs to a single location. Revoke the role at the old location (UC-IAM-11) before assigning a new one.',
     },
   },
 
@@ -381,6 +409,13 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Vai trò này không thể cấp từ màn hình thêm nhân viên.',
       en: 'This role cannot be assigned from the employee creation screen.',
+    },
+  },
+  ROLE_NOT_REVOCABLE: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Vai trò này chỉ thu hồi qua quy trình riêng có người chịu trách nhiệm, không thu hồi từ màn hình này.',
+      en: 'This role can only be revoked through a dedicated, accountable process, not from this screen.',
     },
   },
   REASON_INVALID: {

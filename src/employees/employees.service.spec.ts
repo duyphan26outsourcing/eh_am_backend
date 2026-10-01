@@ -46,6 +46,18 @@ describe('EmployeesService', () => {
         employee_code: null,
         status: 'PENDING_ACTIVATION',
       }),
+      findResendReceipt: jest.fn().mockResolvedValue(null),
+      resendInviteViaRpc: jest.fn().mockResolvedValue({
+        employee_id: 'employee-1',
+        display_name: 'Nguyễn Văn A',
+        work_email: 'a@example.com',
+        invite_id: 'invite-2',
+        sent_at: '2026-10-02T01:02:03.000Z',
+        expires_at: '2026-10-02T02:02:03.000Z',
+        delivery_status: 'PENDING',
+        is_replay: false,
+      }),
+      markInviteDelivery: jest.fn().mockResolvedValue(undefined),
       createOptions: jest.fn(),
       ...overrides,
     };
@@ -151,5 +163,133 @@ describe('EmployeesService', () => {
     expect(admin.client.auth.admin.createUser).not.toHaveBeenCalled();
     expect(admin.client.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
     expect(result.id).toBe('employee-1');
+  });
+
+  it('creates the replacement atomically before sending the invitation email', async () => {
+    const { service, repository, admin } = setup();
+
+    const result = await service.resendInvite(
+      'employee-1',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      req,
+    );
+
+    expect(repository.resendInviteViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        p_employee_id: 'employee-1',
+        p_actor_id: 'actor',
+      }),
+    );
+    expect(admin.client.auth.admin.inviteUserByEmail).toHaveBeenCalledWith(
+      'a@example.com',
+      expect.objectContaining({
+        redirectTo: 'http://localhost:5175/activate-account',
+      }),
+    );
+    expect(repository.markInviteDelivery).toHaveBeenCalledWith(
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      'SENT',
+      expect.objectContaining({ actorId: 'actor', requestId: 'request-1' }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        employeeId: 'employee-1',
+        email: 'a@example.com',
+        sentAt: '2026-10-02T01:02:03.000Z',
+      }),
+    );
+  });
+
+  it('replays a completed resend without sending another email', async () => {
+    const receipt = {
+      employee_id: 'employee-1',
+      display_name: 'Nguyễn Văn A',
+      work_email: 'a@example.com',
+      invite_id: 'invite-2',
+      sent_at: '2026-10-02T01:02:03.000Z',
+      expires_at: '2026-10-02T02:02:03.000Z',
+      delivery_status: 'SENT',
+      is_replay: true,
+    };
+    const { service, repository, admin } = setup({
+      findResendReceipt: jest.fn().mockResolvedValue(receipt),
+    });
+
+    await expect(
+      service.resendInvite(
+        'employee-1',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        req,
+      ),
+    ).resolves.toEqual(expect.objectContaining({ employeeId: 'employee-1' }));
+    expect(repository.resendInviteViaRpc).not.toHaveBeenCalled();
+    expect(admin.client.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not send when the RPC reports a concurrent command replay', async () => {
+    const { service, admin } = setup({
+      resendInviteViaRpc: jest.fn().mockResolvedValue({
+        employee_id: 'employee-1',
+        display_name: 'Nguyễn Văn A',
+        work_email: 'a@example.com',
+        invite_id: 'invite-2',
+        sent_at: '2026-10-02T01:02:03.000Z',
+        expires_at: '2026-10-02T02:02:03.000Z',
+        delivery_status: 'SENT',
+        is_replay: true,
+      }),
+    });
+
+    await service.resendInvite(
+      'employee-1',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      req,
+    );
+    expect(admin.client.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it('keeps the new invitation and records failure when email delivery fails', async () => {
+    const { service, repository, admin } = setup();
+    admin.client.auth.admin.inviteUserByEmail.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'provider unavailable' },
+    });
+
+    await expect(
+      service.resendInvite(
+        'employee-1',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        req,
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.EMAIL_SEND_FAILED });
+    expect(repository.markInviteDelivery).toHaveBeenCalledWith(
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      'FAILED',
+      expect.objectContaining({ actorId: 'actor', requestId: 'request-1' }),
+    );
+  });
+
+  it('does not retry a receipt whose first email delivery failed', async () => {
+    const { service, admin } = setup({
+      findResendReceipt: jest.fn().mockResolvedValue({
+        employee_id: 'employee-1',
+        display_name: 'Nguyễn Văn A',
+        work_email: 'a@example.com',
+        invite_id: 'invite-2',
+        sent_at: '2026-10-02T01:02:03.000Z',
+        expires_at: '2026-10-02T02:02:03.000Z',
+        delivery_status: 'FAILED',
+        is_replay: true,
+      }),
+    });
+
+    await expect(
+      service.resendInvite(
+        'employee-1',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        req,
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.EMAIL_SEND_FAILED });
+    expect(admin.client.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
   });
 });

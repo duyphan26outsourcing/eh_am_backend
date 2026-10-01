@@ -10,7 +10,65 @@ import { mapSupabasePostgrestError } from '@/error/supabase-postgres.mapper';
 import { type Database } from '@/supabase/database.types';
 import { SupabaseAdminService } from '@/supabase/supabase-admin.service';
 import { SupabaseTable } from '@/supabase/supabase.define';
-import { type EmployeeDirectoryRow } from './employee.model';
+import {
+  type EmployeeDirectoryRow,
+  type ResendEmployeeInviteRow,
+  type RoleAssignmentRow,
+} from './employee.model';
+
+export interface GrantRoleAssignmentsArgs {
+  p_command_key: string;
+  p_employee_id: string;
+  p_role_code: string;
+  p_context_type: string;
+  p_context_ids: string[];
+  p_effective_from: string;
+  p_effective_to: string | null;
+  p_reason: string;
+  p_actor_id: string;
+  p_actor_label: string;
+  p_request_id: string;
+  p_ip: string | null | undefined;
+  p_user_agent: string;
+}
+
+export interface GrantedRoleRow {
+  id: string;
+  employee_id: string;
+  role_code: string;
+  context_type: string;
+  context_id: string;
+  effective_from: string;
+  effective_to: string | null;
+  grant_reason: string | null;
+  created_at: string;
+}
+
+export interface RevokeRoleAssignmentArgs {
+  p_command_key: string;
+  p_assignment_id: string;
+  p_employee_id: string;
+  p_reason: string;
+  p_actor_id: string;
+  p_actor_label: string;
+  p_request_id: string;
+  p_ip: string | null | undefined;
+  p_user_agent: string;
+}
+
+export interface RevokedRoleRow {
+  id: string;
+  employee_id: string;
+  role_code: string;
+  context_type: string;
+  context_id: string;
+  effective_from: string;
+  effective_to: string | null;
+  grant_reason: string | null;
+  revoke_reason: string | null;
+  revoked_by: string | null;
+  created_at: string;
+}
 
 export interface ListEmployeesArgs {
   search: string | null;
@@ -91,7 +149,10 @@ export class EmployeesRepository extends BaseRepository {
   async listEmployees(
     args: ListEmployeesArgs,
   ): Promise<PaginatedResult<EmployeeDirectoryRow>> {
-    const { data, error } = await this.db.rpc('list_employees', {
+    // ⚠️ Supabase CLI không mã hoá nullability của tham số SQL, nên type sinh ra khai các tham
+    // số lọc là `string` (không null). Postgres nhận NULL cho các tham số này (bỏ lọc tương ứng);
+    // giữ workaround cast ở đúng biên rpc, giống `create_employee`.
+    const rpcArgs = {
       p_search: args.search,
       p_location_id: args.locationId,
       p_department_id: args.departmentId,
@@ -100,7 +161,8 @@ export class EmployeesRepository extends BaseRepository {
       p_employment_type: args.employmentType,
       p_limit: args.pageSize,
       p_offset: (args.page - 1) * args.pageSize,
-    });
+    } as Database['public']['Functions']['list_employees']['Args'];
+    const { data, error } = await this.db.rpc('list_employees', rpcArgs);
     if (error) mapSupabasePostgrestError(error);
     const rows = (data ?? []) as Array<
       EmployeeDirectoryRow & { total_count: number }
@@ -159,16 +221,187 @@ export class EmployeesRepository extends BaseRepository {
   ): Promise<EmployeeRow | null> {
     const { data, error } = await this.db
       .from(SupabaseTable.EMPLOYEE_COMMAND_RECEIPTS)
-      .select('actor_id,result_row,completed_at')
+      .select('actor_id,operation,result_row,completed_at')
       .eq('command_key', commandKey)
       .maybeSingle();
     if (error) mapSupabasePostgrestError(error);
     if (!data) return null;
-    if (data.actor_id !== actorId)
+    if (data.actor_id !== actorId || data.operation !== 'CREATE')
       throw new AppException(ErrorCode.VALIDATION_FAILED);
     return data.completed_at && data.result_row
       ? (data.result_row as EmployeeRow)
       : null;
+  }
+
+  async findResendReceipt(
+    commandKey: string,
+    actorId: string,
+    employeeId: string,
+  ): Promise<ResendEmployeeInviteRow | null> {
+    const { data, error } = await this.db
+      .from(SupabaseTable.EMPLOYEE_COMMAND_RECEIPTS)
+      .select(
+        'actor_id,employee_id,operation,result_row,completed_at,delivery_status',
+      )
+      .eq('command_key', commandKey)
+      .maybeSingle();
+    if (error) mapSupabasePostgrestError(error);
+    if (!data) return null;
+    if (
+      data.actor_id !== actorId ||
+      data.employee_id !== employeeId ||
+      data.operation !== 'RESEND_INVITE'
+    ) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED);
+    }
+    if (!data.completed_at || !data.result_row) {
+      throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+    }
+    return {
+      ...(data.result_row as unknown as ResendEmployeeInviteRow),
+      delivery_status: data.delivery_status as 'PENDING' | 'SENT' | 'FAILED',
+      is_replay: true,
+    };
+  }
+
+  async resendInviteViaRpc(args: {
+    p_command_key: string;
+    p_employee_id: string;
+    p_invite_token_hash: string;
+    p_invite_expires_at: string;
+    p_actor_id: string;
+    p_actor_label: string;
+    p_request_id: string;
+    p_ip: string | null | undefined;
+    p_user_agent: string;
+  }): Promise<ResendEmployeeInviteRow> {
+    const { data, error } = await this.db.rpc('resend_employee_invite', args);
+    if (error) this.handleResendRpcError(error.message);
+    if (!data) throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+    return data as unknown as ResendEmployeeInviteRow;
+  }
+
+  async markInviteDelivery(
+    commandKey: string,
+    status: 'SENT' | 'FAILED',
+    audit: {
+      actorId: string;
+      actorLabel: string;
+      requestId: string;
+      ipAddress: string | null | undefined;
+      userAgent: string;
+    },
+  ): Promise<void> {
+    const { error } = await this.db.rpc('complete_resend_invite_delivery', {
+      p_command_key: commandKey,
+      p_delivery_status: status,
+      p_actor_id: audit.actorId,
+      p_actor_label: audit.actorLabel,
+      p_request_id: audit.requestId,
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent,
+    });
+    if (error) this.handleResendRpcError(error.message);
+  }
+
+  async findAccessProfile(id: string): Promise<{
+    id: string;
+    display_name: string;
+    employee_code: string | null;
+    status: string;
+  } | null> {
+    return this.maybe(
+      await this.db
+        .from(SupabaseTable.USER_PROFILES)
+        .select('id,display_name,employee_code,status')
+        .eq('id', id)
+        .maybeSingle(),
+    );
+  }
+
+  async findRoleAssignments(employeeId: string): Promise<RoleAssignmentRow[]> {
+    const rows = this.many(
+      await this.db
+        .from(SupabaseTable.CONTEXT_ROLE_ASSIGNMENTS)
+        .select(
+          'id,role_code,context_type,context_id,effective_from,effective_to,grant_reason,revoked_by',
+        )
+        .eq('subject_type', 'USER')
+        .eq('subject_id', employeeId)
+        .order('effective_from', { ascending: false }),
+    );
+    // ⚠️ `context_id` của vai trò LOCATION không có FK tới `locations` (bảng thuộc M02), nên
+    // không embed được qua PostgREST. Nạp tên location trong một truy vấn phụ rồi ghép.
+    const locationIds = [
+      ...new Set(
+        rows
+          .filter((row) => row.context_type === 'LOCATION')
+          .map((row) => row.context_id),
+      ),
+    ];
+    const locationsById = new Map<string, { code: string; name: string }>();
+    if (locationIds.length > 0) {
+      const locations = this.many(
+        await this.db
+          .from(SupabaseTable.LOCATIONS)
+          .select('id,code,name')
+          .in('id', locationIds),
+      );
+      for (const loc of locations) {
+        locationsById.set(loc.id, { code: loc.code, name: loc.name });
+      }
+    }
+    return rows.map((row) => ({
+      id: row.id,
+      role_code: row.role_code,
+      context_type: row.context_type,
+      context_id: row.context_id,
+      effective_from: row.effective_from,
+      effective_to: row.effective_to,
+      grant_reason: row.grant_reason,
+      revoked_by: row.revoked_by,
+      location_code: locationsById.get(row.context_id)?.code ?? null,
+      location_name: locationsById.get(row.context_id)?.name ?? null,
+    }));
+  }
+
+  async listActiveLocations(): Promise<
+    Array<{ id: string; code: string; name: string }>
+  > {
+    return this.many(
+      await this.db
+        .from(SupabaseTable.LOCATIONS)
+        .select('id,code,name')
+        .eq('status', 'ACTIVE')
+        .neq('type', 'EXTERNAL')
+        .order('code'),
+    );
+  }
+
+  async grantRolesViaRpc(
+    args: GrantRoleAssignmentsArgs,
+  ): Promise<GrantedRoleRow[]> {
+    const { data, error } = await this.db.rpc(
+      'grant_role_assignments',
+      args as Database['public']['Functions']['grant_role_assignments']['Args'],
+    );
+    if (error) this.handleGrantRpcError(error.message);
+    return (data ?? []) as unknown as GrantedRoleRow[];
+  }
+
+  async revokeRoleViaRpc(
+    args: RevokeRoleAssignmentArgs,
+  ): Promise<RevokedRoleRow> {
+    // ⚠️ Cast chọn overload rpc có kiểu của supabase-js. Bỏ cast thì overload rơi về bản generic
+    // trả `any` (mất kiểu `data`), nên eslint báo "thừa" là sai ở đây — TS cần cast để suy ra kiểu.
+    const { data, error } = await this.db.rpc(
+      'revoke_role_assignment',
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      args as Database['public']['Functions']['revoke_role_assignment']['Args'],
+    );
+    if (error) this.handleRevokeRpcError(error.message);
+    if (!data) throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+    return data as unknown as RevokedRoleRow;
   }
 
   async createViaRpc(args: CreateEmployeeArgs): Promise<EmployeeRow> {
@@ -213,5 +446,86 @@ export class EmployeesRepository extends BaseRepository {
       throw new AppException(ErrorCode.VALIDATION_FAILED);
     }
     throw new AppException(ErrorCode.ACCOUNT_CREATE_FAILED);
+  }
+
+  private handleResendRpcError(message: string): never {
+    if (message.includes('ACCOUNT_STATE_CONFLICT')) {
+      throw new AppException(ErrorCode.ACCOUNT_STATE_CONFLICT);
+    }
+    if (message.includes('AUDIT_WRITE_FAILED')) {
+      throw new AppException(ErrorCode.AUDIT_WRITE_FAILED);
+    }
+    if (message.includes('IDEMPOTENCY_IN_PROGRESS')) {
+      throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+    }
+    if (
+      message.includes('IDEMPOTENCY_KEY_REUSED') ||
+      message.includes('INVITE_INVALID')
+    ) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED);
+    }
+    throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+  }
+
+  private handleGrantRpcError(message: string): never {
+    if (message.includes('ROLE_NOT_ASSIGNABLE')) {
+      throw new AppException(ErrorCode.ROLE_NOT_ASSIGNABLE);
+    }
+    if (message.includes('LOCATION_STAFF_OTHER_SCOPE')) {
+      throw new AppException(ErrorCode.LOCATION_STAFF_SCOPE_CONFLICT);
+    }
+    if (message.includes('ROLE_ASSIGNMENT_OVERLAP')) {
+      throw new AppException(ErrorCode.ROLE_ASSIGNMENT_EXISTS);
+    }
+    if (message.includes('LOCATION_NOT_ACTIVE')) {
+      throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
+    }
+    if (message.includes('REASON_REQUIRED')) {
+      throw new AppException(ErrorCode.REQUIRED_FIELD_MISSING);
+    }
+    if (message.includes('AUDIT_WRITE_FAILED')) {
+      throw new AppException(ErrorCode.AUDIT_WRITE_FAILED);
+    }
+    if (message.includes('IDEMPOTENCY_IN_PROGRESS')) {
+      throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+    }
+    if (
+      message.includes('ROLE_CONTEXT_INVALID') ||
+      message.includes('EFFECTIVE_WINDOW_INVALID') ||
+      message.includes('LOCATION_STAFF_SINGLE_SCOPE') ||
+      message.includes('IDEMPOTENCY_KEY_REUSED') ||
+      message.includes('EMPLOYEE_NOT_ACTIVE')
+    ) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED);
+    }
+    throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+  }
+
+  private handleRevokeRpcError(message: string): never {
+    // ⚠️ Dòng không tồn tại hoặc không thuộc nhân viên này → coi như không tìm thấy (404), không
+    // tiết lộ dòng của người khác.
+    if (message.includes('ASSIGNMENT_NOT_FOUND')) {
+      throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
+    }
+    if (message.includes('ROLE_NOT_REVOCABLE')) {
+      throw new AppException(ErrorCode.ROLE_NOT_REVOCABLE);
+    }
+    // Trigger `tg_role_assignment_close_only` và tiền kiểm "đã đóng / quá hạn" đều dùng mã này.
+    if (message.includes('HISTORY_IMMUTABLE')) {
+      throw new AppException(ErrorCode.HISTORY_IMMUTABLE);
+    }
+    if (message.includes('REASON_REQUIRED')) {
+      throw new AppException(ErrorCode.REQUIRED_FIELD_MISSING);
+    }
+    if (message.includes('AUDIT_WRITE_FAILED')) {
+      throw new AppException(ErrorCode.AUDIT_WRITE_FAILED);
+    }
+    if (message.includes('IDEMPOTENCY_IN_PROGRESS')) {
+      throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+    }
+    if (message.includes('IDEMPOTENCY_KEY_REUSED')) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED);
+    }
+    throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
   }
 }

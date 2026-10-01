@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -15,13 +17,16 @@ import { PermissionsGuard } from '@/auth/guards/permission.guard';
 import { type AuthRequest } from '@/auth/auth.interface';
 import { API_VERSION_1 } from '@/common/constants/api-version.const';
 import {
+  THROTTLE_EMAIL,
   THROTTLE_SEARCH,
   THROTTLE_WRITE,
 } from '@/common/constants/throttle.const';
 import { requireIdempotencyKey } from '@/common/http/idempotency-key';
 import { ContextType, Role } from '@/utils/enums/role.enum';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { GrantRoleAssignmentDto } from './dto/grant-role-assignment.dto';
 import { ListEmployeesQueryDto } from './dto/list-employees.dto';
+import { RevokeRoleAssignmentDto } from './dto/revoke-role-assignment.dto';
 import { EmployeesService } from './employees.service';
 
 @Controller({ path: 'employees', version: API_VERSION_1 })
@@ -52,5 +57,59 @@ export class EmployeesController {
     @Req() req: AuthRequest,
   ) {
     return this.service.create(dto, requireIdempotencyKey(idempotencyKey), req);
+  }
+
+  @Post(':id/resend-invite')
+  @Throttle({ default: THROTTLE_EMAIL })
+  async resendInvite(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.resendInvite(
+      employeeId,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Get(':id/access')
+  @Throttle({ default: THROTTLE_SEARCH })
+  async access(@Param('id', new ParseUUIDPipe()) employeeId: string) {
+    return this.service.getAccess(employeeId);
+  }
+
+  @Post(':id/role-assignments')
+  @Throttle({ default: THROTTLE_WRITE })
+  async grantRoles(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Body() dto: GrantRoleAssignmentDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.grantRoles(
+      employeeId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Post(':id/role-assignments/:assignmentId/revoke')
+  @Throttle({ default: THROTTLE_WRITE })
+  async revokeRole(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Param('assignmentId', new ParseUUIDPipe()) assignmentId: string,
+    @Body() dto: RevokeRoleAssignmentDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.revokeRole(
+      employeeId,
+      assignmentId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
   }
 }

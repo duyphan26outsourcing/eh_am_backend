@@ -21,6 +21,8 @@ export interface EmployeeCreateOptions {
   }>;
 }
 
+import { roleAssignmentStatus } from './employee-role-assignment';
+
 export interface CreatedEmployeeModel {
   id: string;
   displayName: string;
@@ -29,6 +31,26 @@ export interface CreatedEmployeeModel {
   status: string;
   activationMethod: string;
   invitationEmailSent: boolean;
+}
+
+export interface ResentEmployeeInviteModel {
+  employeeId: string;
+  displayName: string;
+  email: string;
+  inviteId: string;
+  sentAt: string;
+  expiresAt: string;
+}
+
+export interface ResendEmployeeInviteRow {
+  employee_id: string;
+  display_name: string;
+  work_email: string;
+  invite_id: string;
+  sent_at: string;
+  expires_at: string;
+  delivery_status: 'PENDING' | 'SENT' | 'FAILED';
+  is_replay: boolean;
 }
 
 /**
@@ -107,5 +129,79 @@ export function toEmployeeListItemModel(
       : null,
     inviteStatus: pending ? row.invite_status : null,
     inviteExpiresAt: pending ? row.invite_expires_at : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// UC-IAM-10: Phân quyền theo phạm vi
+// ---------------------------------------------------------------------------
+
+/** Dòng phân quyền đọc từ `context_role_assignments` (kèm tên location join sẵn). */
+export interface RoleAssignmentRow {
+  id: string;
+  role_code: string;
+  context_type: string;
+  context_id: string;
+  effective_from: string;
+  effective_to: string | null;
+  grant_reason: string | null;
+  revoked_by: string | null;
+  location_code: string | null;
+  location_name: string | null;
+}
+
+export interface RoleAssignmentModel {
+  id: string;
+  roleCode: string;
+  contextType: string;
+  contextId: string;
+  location: { id: string; code: string; name: string } | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  grantReason: string | null;
+  status: 'UPCOMING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+}
+
+export interface EmployeeAccessModel {
+  employee: {
+    id: string;
+    displayName: string;
+    employeeCode: string | null;
+    status: string;
+  };
+  assignments: RoleAssignmentModel[];
+  options: {
+    roles: Array<{
+      code: string;
+      nameVi: string;
+      nameEn: string;
+      contextType: string;
+    }>;
+    locations: Array<{ id: string; code: string; name: string }>;
+  };
+}
+
+export function toRoleAssignmentModel(
+  row: RoleAssignmentRow,
+  now = new Date(),
+): RoleAssignmentModel {
+  return {
+    id: row.id,
+    roleCode: row.role_code,
+    contextType: row.context_type,
+    contextId: row.context_id,
+    // ⚠️ Vai trò PLATFORM dùng nil-UUID làm context nên không có location.
+    location:
+      row.context_type === 'LOCATION' && row.location_code
+        ? {
+            id: row.context_id,
+            code: row.location_code,
+            name: row.location_name ?? '',
+          }
+        : null,
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to,
+    grantReason: row.grant_reason,
+    status: roleAssignmentStatus(row, now),
   };
 }
