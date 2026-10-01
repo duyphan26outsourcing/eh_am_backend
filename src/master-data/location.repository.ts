@@ -7,6 +7,7 @@ import { type PaginatedResult } from '@/common/interfaces/paginated-result.inter
 import { AppException } from '@/common/exceptions/app.exception';
 import { ErrorCode } from '@/common/i18n/error-code.const';
 import { mapSupabasePostgrestError } from '@/error/supabase-postgres.mapper';
+import { type LocationListRow } from './location.model';
 
 type LocationRow = TableRow<'locations'>;
 export type CreateLocationRpcArgs =
@@ -28,14 +29,26 @@ export class LocationRepository extends BaseRepository {
   async list(
     page: number,
     pageSize: number,
-  ): Promise<PaginatedResult<LocationRow>> {
+    status?: string,
+    types?: string[],
+    query?: string,
+  ): Promise<PaginatedResult<LocationListRow>> {
     const [from, to] = this.range(page, pageSize);
+    let request = this.db
+      .from(SupabaseTable.LOCATIONS)
+      .select(
+        '*, default_cost_center:cost_centers!locations_default_cost_center_id_fkey(code,name)',
+        { count: 'exact' },
+      );
+    if (status) request = request.eq('status', status);
+    if (types?.length) request = request.in('type', types);
+    const term = query?.trim();
+    if (term) {
+      const safe = term.replace(/[,%()]/g, ' ');
+      request = request.or(`code.ilike.%${safe}%,name.ilike.%${safe}%`);
+    }
     return this.page(
-      await this.db
-        .from(SupabaseTable.LOCATIONS)
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to),
+      await request.order('created_at', { ascending: false }).range(from, to),
       page,
       pageSize,
     );
@@ -67,6 +80,9 @@ export class LocationRepository extends BaseRepository {
   async createViaRpc(args: CreateLocationRpcArgs): Promise<LocationRow> {
     const { data, error } = await this.db.rpc('create_location', args);
     if (error) {
+      if (error.message.includes('IDEMPOTENCY_KEY_REUSED')) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED);
+      }
       // 23505 = unique_violation → trùng mã (BR-MDM-01, EX.2).
       if (error.code === '23505') {
         throw new AppException(ErrorCode.DUPLICATE_RECORD);
@@ -82,6 +98,9 @@ export class LocationRepository extends BaseRepository {
   async updateViaRpc(args: UpdateLocationRpcArgs): Promise<LocationRow> {
     const { data, error } = await this.db.rpc('update_location', args);
     if (error) {
+      if (error.message.includes('IDEMPOTENCY_KEY_REUSED')) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED);
+      }
       if (error.message.includes('VERSION_CONFLICT')) {
         throw new AppException(ErrorCode.RECORD_VERSION_CONFLICT);
       }

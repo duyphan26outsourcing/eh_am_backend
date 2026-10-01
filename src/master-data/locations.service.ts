@@ -16,18 +16,25 @@ export class LocationsService {
   async list(
     page: number,
     pageSize: number,
+    status?: string,
+    types?: string[],
+    query?: string,
   ): Promise<PaginatedResult<LocationModel>> {
-    const result = await this.repo.list(page, pageSize);
+    const result = await this.repo.list(page, pageSize, status, types, query);
     return { ...result, items: result.items.map(toLocationModel) };
   }
 
   async create(
     dto: CreateLocationDto,
+    commandKey: string,
     req: AuthRequest,
   ): Promise<LocationModel> {
     // Chuẩn hoá mã như mã nhân viên: bỏ khoảng trắng hai đầu, in hoa (BR-MDM-01, Giả định 1).
     const code = dto.code.trim().toUpperCase();
-    const address = dto.address?.trim() ? dto.address.trim() : null;
+    const provinceCode = dto.provinceCode.trim();
+    const provinceName = dto.provinceName.trim();
+    const wardName = dto.wardName.trim();
+    const addressDetail = dto.addressDetail.trim();
 
     // UC-MDM-01.EX.1 / BR-MDM-04: cost center mặc định phải Đang hoạt động.
     if (!(await this.repo.activeCostCenterExists(dto.defaultCostCenterId))) {
@@ -40,18 +47,34 @@ export class LocationsService {
         code,
         name: dto.name,
         type: dto.type,
-        address,
+        province_code: provinceCode,
+        province_name: provinceName,
+        ward_name: wardName,
+        address_detail: addressDetail,
         default_cost_center_id: dto.defaultCostCenterId,
       },
-      ['code', 'name', 'type', 'address', 'default_cost_center_id'],
+      [
+        'code',
+        'name',
+        'type',
+        'province_code',
+        'province_name',
+        'ward_name',
+        'address_detail',
+        'default_cost_center_id',
+      ],
     );
     const ctx = auditContextOf(req);
 
     const row = await this.repo.createViaRpc({
       p_code: code,
+      p_command_key: commandKey,
       p_name: dto.name,
       p_type: dto.type,
-      p_address: address ?? '',
+      p_province_code: provinceCode,
+      p_province_name: provinceName,
+      p_ward_name: wardName,
+      p_address_detail: addressDetail,
       p_cost_center_id: dto.defaultCostCenterId,
       p_actor_id: req.user.sub,
       p_actor_label: ctx.actorLabel ?? '',
@@ -67,6 +90,7 @@ export class LocationsService {
   async update(
     id: string,
     dto: UpdateLocationDto,
+    commandKey: string,
     req: AuthRequest,
   ): Promise<LocationModel> {
     const current = await this.repo.findById(id);
@@ -77,27 +101,47 @@ export class LocationsService {
       throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
     }
 
-    const address = dto.address?.trim() ? dto.address.trim() : null;
+    const provinceCode = dto.provinceCode.trim();
+    const provinceName = dto.provinceName.trim();
+    const wardName = dto.wardName.trim();
+    const addressDetail = dto.addressDetail.trim();
     const changes = diffFields(
       {
         name: current.name,
-        address: current.address,
+        province_code: current.province_code,
+        province_name: current.province_name,
+        ward_name: current.ward_name,
+        address_detail: current.address_detail,
         default_cost_center_id: current.default_cost_center_id,
       },
       {
         name: dto.name,
-        address,
+        province_code: provinceCode,
+        province_name: provinceName,
+        ward_name: wardName,
+        address_detail: addressDetail,
         default_cost_center_id: dto.defaultCostCenterId,
       },
-      ['name', 'address', 'default_cost_center_id'],
+      [
+        'name',
+        'province_code',
+        'province_name',
+        'ward_name',
+        'address_detail',
+        'default_cost_center_id',
+      ],
     );
     const ctx = auditContextOf(req);
 
     const row = await this.repo.updateViaRpc({
       p_id: id,
+      p_command_key: commandKey,
       p_expected_version: dto.version,
       p_name: dto.name,
-      p_address: address ?? '',
+      p_province_code: provinceCode,
+      p_province_name: provinceName,
+      p_ward_name: wardName,
+      p_address_detail: addressDetail,
       p_cost_center_id: dto.defaultCostCenterId,
       p_actor_id: req.user.sub,
       p_actor_label: ctx.actorLabel ?? '',

@@ -16,16 +16,20 @@ import {
   THROTTLE_LOGIN,
 } from '@/common/constants/throttle.const';
 import { AuthService } from './auth.service';
+import { ActivationService } from './activation.service';
 import { AuthRequest } from './auth.interface';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
   ResetPasswordDto,
 } from './dto/password.dto';
+import {
+  ActivationPreviewDto,
+  CompleteActivationDto,
+} from './dto/activation.dto';
 
 /**
  * ============================================================================
@@ -36,7 +40,8 @@ import {
  *
  * | Route                 | Guard | Lý do |
  * | --------------------- | ----- | ----- |
- * | `register`            | ❌    | Người gọi chưa có tài khoản |
+ * | `activation/preview`  | ❌    | Access token từ email mời là bằng chứng |
+ * | `activation/complete` | ❌    | Như trên; người dùng chưa có phiên EH-AM |
  * | `resend-confirmation` | ❌    | Chưa xác nhận email thì chưa đăng nhập được |
  * | `login`               | ❌    | Người gọi chưa có token |
  * | `refresh`             | ❌    | Access token **đã hết hạn** — đó là lý do họ gọi |
@@ -47,7 +52,7 @@ import {
  * | `change-password`     | ✅    | Chỉ chủ tài khoản đổi được |
  * | `me`                  | ✅    | Trả dữ liệu của người đang đăng nhập |
  *
- * ⚠️ SÁU ROUTE KHÔNG CÓ GUARD LÀ TOÀN BỘ BỀ MẶT CÔNG KHAI CỦA HỆ THỐNG XÁC THỰC.
+ * ⚠️ CÁC ROUTE KHÔNG CÓ GUARD Ở BẢNG TRÊN LÀ TOÀN BỘ BỀ MẶT CÔNG KHAI CỦA HỆ THỐNG XÁC THỰC.
  * Thêm một route không guard vào đây là mở rộng bề mặt đó, nên phải có lý do ghi rõ trong
  * bảng trên — không phải chỉ vì "endpoint này không cần đăng nhập".
  *
@@ -59,26 +64,33 @@ import {
  */
 @Controller({ path: 'auth', version: API_VERSION_1 })
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly activationService: ActivationService,
+  ) {}
+
+  /** Đọc thông tin tối thiểu của lời mời; access token trong body là bằng chứng sở hữu email. */
+  @Post('activation/preview')
+  @HttpCode(200)
+  @Throttle({ default: THROTTLE_AUTH })
+  async previewActivation(@Body() dto: ActivationPreviewDto) {
+    return this.activationService.preview(dto);
+  }
+
+  /** Đặt mật khẩu rồi kích hoạt profile; không cấp phiên ứng dụng sau khi hoàn tất. */
+  @Post('activation/complete')
+  @HttpCode(200)
+  @Throttle({ default: THROTTLE_AUTH })
+  async completeActivation(
+    @Body() dto: CompleteActivationDto,
+    @Req() req: Request,
+  ) {
+    return this.activationService.complete(dto, req);
+  }
 
   // =========================================================================
   // TẠO TÀI KHOẢN VÀ ĐĂNG NHẬP
   // =========================================================================
-
-  /**
-   * Đăng ký.
-   *
-   * ⚠️ Route công khai tạo bản ghi trong database là mục tiêu tự nhiên của bot. Giới hạn ở
-   * đây chặt hơn `THROTTLE_AUTH` (5 lần / 10 phút thay vì 10 lần / phút) vì đăng ký không
-   * phải việc người ta làm lặp lại — một người đăng ký một lần.
-   *
-   * ⚠️ Tài khoản mới KHÔNG có vai trò nào — xem chú thích ở `RegisterDto`.
-   */
-  @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 600_000 } })
-  async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, req);
-  }
 
   /**
    * Gửi lại email xác nhận đăng ký — **không có guard**.

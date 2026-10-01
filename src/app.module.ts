@@ -14,6 +14,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { MasterDataModule } from './master-data/master-data.module';
+import { EmployeesModule } from './employees/employees.module';
 
 /**
  * ============================================================================
@@ -71,6 +72,7 @@ import { MasterDataModule } from './master-data/master-data.module';
 
     // Module nghiệp vụ
     MasterDataModule,
+    EmployeesModule,
   ],
   controllers: [AppController],
   providers: [

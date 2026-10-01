@@ -40,6 +40,10 @@ export const SupabaseTable = {
   LOCATIONS: 'locations',
   REASON_CODES: 'reason_codes',
   ASSET_TYPES: 'asset_types',
+  SUPPLIERS: 'suppliers',
+  REPAIR_VENDORS: 'repair_vendors',
+  ACTIVATION_INVITES: 'activation_invites',
+  EMPLOYEE_COMMAND_RECEIPTS: 'employee_command_receipts',
 } as const satisfies Record<string, PublicTableName>;
 
 // ---------------------------------------------------------------------------

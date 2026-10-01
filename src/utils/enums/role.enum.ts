@@ -70,11 +70,15 @@ export const PLATFORM_CONTEXT_ID = '00000000-0000-0000-0000-000000000000';
  */
 export const SUPER_ADMIN_METADATA_ROLE = 'admin';
 
-/** ⏳ Tạm thời — xem chú thích đầu file. */
 export const Role = {
   // Toàn hệ thống
   SYSTEM_ADMIN: 'SYSTEM_ADMIN',
+  EXECUTIVE: 'EXECUTIVE',
+  CHIEF_ACCOUNTANT: 'CHIEF_ACCOUNTANT',
+  ASSET_ACCOUNTANT: 'ASSET_ACCOUNTANT',
   ASSET_MANAGER: 'ASSET_MANAGER',
+  TECHNICIAN: 'TECHNICIAN',
+  AUDITOR: 'AUDITOR',
   // Theo location
   LOCATION_MANAGER: 'LOCATION_MANAGER',
   LOCATION_STAFF: 'LOCATION_STAFF',
@@ -106,11 +110,38 @@ export const ROLE_CATALOG: readonly RoleCatalogItem[] = [
     assignable: false,
   },
   {
+    code: Role.EXECUTIVE,
+    nameVi: 'Ban giám đốc',
+    nameEn: 'Executive',
+    contextType: ContextType.PLATFORM,
+    descriptionVi:
+      'Xem tổng quan toàn hệ thống và thực hiện các bước duyệt theo thẩm quyền.',
+    assignable: true,
+  },
+  {
+    code: Role.CHIEF_ACCOUNTANT,
+    nameVi: 'Kế toán trưởng',
+    nameEn: 'Chief Accountant',
+    contextType: ContextType.PLATFORM,
+    descriptionVi:
+      'Phê duyệt chính sách và điều chỉnh thông tin kế toán tài sản.',
+    assignable: true,
+  },
+  {
+    code: Role.ASSET_ACCOUNTANT,
+    nameVi: 'Kế toán tài sản',
+    nameEn: 'Asset Accountant',
+    contextType: ContextType.PLATFORM,
+    descriptionVi:
+      'Quản lý nguyên giá, hoá đơn, chứng từ và ghi nhận nghiệp vụ kế toán tài sản.',
+    assignable: true,
+  },
+  {
     code: Role.ASSET_MANAGER,
     nameVi: 'Quản lý tài sản',
     nameEn: 'Asset Manager',
     contextType: ContextType.PLATFORM,
-    descriptionVi: 'Quản lý nghiệp vụ tài sản trên mọi location. (Tạm thời.)',
+    descriptionVi: 'Quản lý nghiệp vụ tài sản trên mọi location.',
     assignable: true,
   },
   {
@@ -119,7 +150,7 @@ export const ROLE_CATALOG: readonly RoleCatalogItem[] = [
     nameEn: 'Location Manager',
     contextType: ContextType.LOCATION,
     descriptionVi:
-      'Chịu trách nhiệm tài sản tại một location (cửa hàng, kho, xưởng rang, văn phòng). (Tạm thời.)',
+      'Chịu trách nhiệm tài sản tại một location (cửa hàng, kho, xưởng rang, văn phòng).',
     assignable: true,
   },
   {
@@ -127,7 +158,24 @@ export const ROLE_CATALOG: readonly RoleCatalogItem[] = [
     nameVi: 'Nhân viên điểm',
     nameEn: 'Location Staff',
     contextType: ContextType.LOCATION,
-    descriptionVi: 'Nhân viên làm việc tại một location. (Tạm thời.)',
+    descriptionVi: 'Nhân viên làm việc tại một location.',
+    assignable: true,
+  },
+  {
+    code: Role.TECHNICIAN,
+    nameVi: 'Kỹ thuật viên',
+    nameEn: 'Technician',
+    contextType: ContextType.PLATFORM,
+    descriptionVi:
+      'Tiếp nhận yêu cầu sửa chữa và cập nhật tiến độ, kết quả xử lý.',
+    assignable: true,
+  },
+  {
+    code: Role.AUDITOR,
+    nameVi: 'Kiểm soát nội bộ',
+    nameEn: 'Internal Auditor',
+    contextType: ContextType.PLATFORM,
+    descriptionVi: 'Tra cứu nhật ký và báo cáo ở chế độ chỉ đọc.',
     assignable: true,
   },
 ];

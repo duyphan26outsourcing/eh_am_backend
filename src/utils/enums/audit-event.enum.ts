@@ -58,6 +58,8 @@ export const AuditEvent = {
   IDENTITY_PROFILE_UPDATED: 'identity.profile.updated',
   IAM_ROLE_GRANTED: 'iam.role.granted',
   IAM_ROLE_REVOKED: 'iam.role.revoked',
+  IAM_EMPLOYEE_CREATED: 'iam.employee.created',
+  IAM_EMPLOYEE_ACTIVATED: 'iam.employee.activated',
 
   // -------------------------------------------------------------------------
   // M02 — Danh mục nền

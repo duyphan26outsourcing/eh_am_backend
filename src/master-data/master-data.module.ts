@@ -16,6 +16,12 @@ import { ReasonCodeRepository } from './reason-code.repository';
 import { AssetTypesController } from './asset-types.controller';
 import { AssetTypesService } from './asset-types.service';
 import { AssetTypeRepository } from './asset-type.repository';
+import { SuppliersController } from './suppliers.controller';
+import { SuppliersService } from './suppliers.service';
+import { SupplierRepository } from './supplier.repository';
+import { RepairVendorsController } from './repair-vendors.controller';
+import { RepairVendorsService } from './repair-vendors.service';
+import { RepairVendorRepository } from './repair-vendor.repository';
 
 /**
  * M02 — Danh mục nền. Hiện có: location (UC-MDM-01), cost center (UC-MDM-03), phòng ban
@@ -34,6 +40,8 @@ import { AssetTypeRepository } from './asset-type.repository';
     DepartmentsController,
     ReasonCodesController,
     AssetTypesController,
+    SuppliersController,
+    RepairVendorsController,
   ],
   providers: [
     LocationsService,
@@ -46,6 +54,10 @@ import { AssetTypeRepository } from './asset-type.repository';
     ReasonCodeRepository,
     AssetTypesService,
     AssetTypeRepository,
+    SuppliersService,
+    SupplierRepository,
+    RepairVendorsService,
+    RepairVendorRepository,
   ],
 })
 export class MasterDataModule {}

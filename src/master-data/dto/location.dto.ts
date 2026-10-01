@@ -1,7 +1,6 @@
 import {
   IsIn,
   IsInt,
-  IsOptional,
   IsString,
   IsUUID,
   Length,
@@ -33,10 +32,21 @@ export class CreateLocationDto {
   @IsIn(LOCATION_TYPES)
   type!: string;
 
-  @IsOptional()
   @IsString()
-  @Length(0, 300)
-  address?: string;
+  @Length(1, 20)
+  provinceCode!: string;
+
+  @IsString()
+  @Length(1, 120)
+  provinceName!: string;
+
+  @IsString()
+  @Length(1, 120)
+  wardName!: string;
+
+  @IsString()
+  @Length(1, 200)
+  addressDetail!: string;
 
   @IsUUID('4')
   defaultCostCenterId!: string;
@@ -48,10 +58,21 @@ export class UpdateLocationDto {
   @Length(1, 150)
   name!: string;
 
-  @IsOptional()
   @IsString()
-  @Length(0, 300)
-  address?: string;
+  @Length(1, 20)
+  provinceCode!: string;
+
+  @IsString()
+  @Length(1, 120)
+  provinceName!: string;
+
+  @IsString()
+  @Length(1, 120)
+  wardName!: string;
+
+  @IsString()
+  @Length(1, 200)
+  addressDetail!: string;
 
   @IsUUID('4')
   defaultCostCenterId!: string;

@@ -9,6 +9,8 @@ import { SupabaseJwtModule } from './supabase-jwt/supabase-jwt.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permission.guard';
 import { SuperAdminGuard } from './guards/super-admin.guard';
+import { ActivationRepository } from './activation.repository';
+import { ActivationService } from './activation.service';
 
 /**
  * `@Global()` để `EncryptionService` và `AccessScopeService` có sẵn ở mọi injector.
@@ -32,6 +34,8 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    ActivationRepository,
+    ActivationService,
     EncryptionService,
     AccessScopeService,
     JwtAuthGuard,

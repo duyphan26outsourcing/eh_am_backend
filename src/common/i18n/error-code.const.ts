@@ -60,6 +60,12 @@ export const ErrorCode = {
   NEW_PASSWORD_SAME_AS_CURRENT: 'NEW_PASSWORD_SAME_AS_CURRENT',
   RECOVERY_TOKEN_INVALID: 'RECOVERY_TOKEN_INVALID',
   ACCOUNT_CREATE_FAILED: 'ACCOUNT_CREATE_FAILED',
+  EMAIL_SEND_FAILED: 'EMAIL_SEND_FAILED',
+  PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
+  INVITATION_INVALID: 'INVITATION_INVALID',
+  INVITATION_EXPIRED: 'INVITATION_EXPIRED',
+  INVITATION_USED_OR_REPLACED: 'INVITATION_USED_OR_REPLACED',
+  PASSWORD_UPDATE_FAILED: 'PASSWORD_UPDATE_FAILED',
 
   // -------------------------------------------------------------------------
   // Hồ sơ người dùng
@@ -68,6 +74,8 @@ export const ErrorCode = {
   /** ⚠️ Có tham số `{status}` — dùng cho cả `SUSPENDED` và `DEACTIVATED`. */
   ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
   EMPLOYEE_CODE_TAKEN: 'EMPLOYEE_CODE_TAKEN',
+  EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
+  INVALID_SUPERIOR: 'INVALID_SUPERIOR',
 
   // -------------------------------------------------------------------------
   // Phân quyền
@@ -75,11 +83,14 @@ export const ErrorCode = {
   ROLE_REQUIRED: 'ROLE_REQUIRED',
   SUPER_ADMIN_REQUIRED: 'SUPER_ADMIN_REQUIRED',
   GUARD_ORDER_ERROR: 'GUARD_ORDER_ERROR',
+  ROLE_NOT_ASSIGNABLE: 'ROLE_NOT_ASSIGNABLE',
+  REASON_INVALID: 'REASON_INVALID',
 
   // -------------------------------------------------------------------------
   // Truy cập dữ liệu và toàn vẹn lịch sử
   // -------------------------------------------------------------------------
   DUPLICATE_RECORD: 'DUPLICATE_RECORD',
+  SUPPLIER_TAX_ID_TAKEN: 'SUPPLIER_TAX_ID_TAKEN',
   RECORD_VERSION_CONFLICT: 'RECORD_VERSION_CONFLICT',
   SYSTEM_REASON_PROTECTED: 'SYSTEM_REASON_PROTECTED',
   /** Ngừng một mục danh mục nền khi nó còn được dùng (UC-MDM-02/03/08.EX). */
@@ -262,6 +273,48 @@ export const ERROR_DEFINITIONS = {
       en: 'Could not create the account. Please try again.',
     },
   },
+  EMAIL_SEND_FAILED: {
+    status: HttpStatus.BAD_GATEWAY,
+    messages: {
+      vi: 'Chưa gửi được email mời nên hồ sơ chưa được tạo. Vui lòng thử lại.',
+      en: 'The invitation email could not be sent, so the profile was not created. Please try again.',
+    },
+  },
+  PASSWORD_CHANGE_REQUIRED: {
+    status: HttpStatus.FORBIDDEN,
+    messages: {
+      vi: 'Bạn cần đổi mật khẩu tạm trước khi tiếp tục.',
+      en: 'You must change the temporary password before continuing.',
+    },
+  },
+  INVITATION_INVALID: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Liên kết kích hoạt không hợp lệ. Vui lòng mở lại liên kết mới nhất trong email.',
+      en: 'This activation link is invalid. Please open the latest link in your email.',
+    },
+  },
+  INVITATION_EXPIRED: {
+    status: HttpStatus.GONE,
+    messages: {
+      vi: 'Liên kết kích hoạt đã hết hạn. Vui lòng liên hệ quản trị hệ thống để được gửi lại.',
+      en: 'This activation link has expired. Please ask your system administrator to resend it.',
+    },
+  },
+  INVITATION_USED_OR_REPLACED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Liên kết kích hoạt không còn hiệu lực. Nếu đã kích hoạt, bạn có thể đăng nhập; nếu chưa, hãy dùng email mới nhất.',
+      en: 'This activation link is no longer valid. If activation is complete, sign in; otherwise use the latest email.',
+    },
+  },
+  PASSWORD_UPDATE_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    messages: {
+      vi: 'Chưa đặt được mật khẩu. Vui lòng mở lại liên kết và thử lần nữa.',
+      en: 'Your password could not be set. Please reopen the link and try again.',
+    },
+  },
 
   // -------------------------------------------------------------------------
   PROFILE_NOT_INITIALIZED: {
@@ -283,6 +336,20 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Mã nhân viên "{employeeCode}" đã gắn với một tài khoản khác. Vui lòng kiểm tra lại.',
       en: 'Employee code "{employeeCode}" is already linked to another account. Please check it again.',
+    },
+  },
+  EMAIL_ALREADY_REGISTERED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Email công việc này đã thuộc về một tài khoản khác. Vui lòng kiểm tra lại.',
+      en: 'This work email already belongs to another account. Please check it again.',
+    },
+  },
+  INVALID_SUPERIOR: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Cấp trên đã chọn không hợp lệ hoặc không còn hoạt động.',
+      en: 'The selected manager is invalid or no longer active.',
     },
   },
 
@@ -309,6 +376,20 @@ export const ERROR_DEFINITIONS = {
       en: 'Endpoint protection is misconfigured. Please report this to the operations team.',
     },
   },
+  ROLE_NOT_ASSIGNABLE: {
+    status: HttpStatus.FORBIDDEN,
+    messages: {
+      vi: 'Vai trò này không thể cấp từ màn hình thêm nhân viên.',
+      en: 'This role cannot be assigned from the employee creation screen.',
+    },
+  },
+  REASON_INVALID: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Lý do đã chọn không còn dùng được cho thao tác gán vai trò.',
+      en: 'The selected reason is no longer valid for assigning a role.',
+    },
+  },
 
   // -------------------------------------------------------------------------
   DUPLICATE_RECORD: {
@@ -316,6 +397,13 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Dữ liệu này đã tồn tại. Vui lòng dùng giá trị khác.',
       en: 'This record already exists. Please use a different value.',
+    },
+  },
+  SUPPLIER_TAX_ID_TAKEN: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Mã số thuế này đã thuộc về nhà cung cấp "{existingName}". Vui lòng kiểm tra lại.',
+      en: 'This tax ID already belongs to supplier "{existingName}". Please check it again.',
     },
   },
   RECORD_VERSION_CONFLICT: {

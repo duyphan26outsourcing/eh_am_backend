@@ -60,3 +60,11 @@ sequenceDiagram
 
 ## 7. Kiểm chứng trước khi báo xong
 `npx tsc --noEmit` · `npx eslint src test` · `npm test` · `npm run test:e2e -- <contract>`. Không commit (chờ Duy).
+
+## 8. Kế hoạch sửa lỗi địa chỉ có cấu trúc (2026-10-01)
+
+- Không sửa migration đã chạy. Tạo `02n_location_structured_address.sql`, bổ sung `province_code`, `province_name`, `ward_name`, `address_detail` và thay chữ ký RPC location.
+- DTO tạo/sửa bắt buộc đủ tỉnh/thành, phường/xã và địa chỉ chi tiết; service chuẩn hoá từng trường rồi RPC tự tạo chuỗi `address` tương thích dữ liệu cũ.
+- API trả cả bốn trường có cấu trúc để dialog sửa khôi phục đúng từng control, không phân tích ngược chuỗi tự do.
+- Danh sách location trả thêm mã/tên cost center từ quan hệ FK; giao diện hiện mã và tooltip tên, không lộ UUID.
+- TDD: kiểm DTO/service không gọi RPC khi thiếu trường; kiểm RPC args và mapper cost center trước khi triển khai.

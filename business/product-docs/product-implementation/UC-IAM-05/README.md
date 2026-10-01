@@ -1,102 +1,48 @@
 # Kế hoạch kỹ thuật backend — UC-IAM-05: Thêm nhân viên mới
 
-> **Yêu cầu 2 (backend) — bản để Duy duyệt TRƯỚC khi build.** UC: [UC-IAM-05](../../product-usecase/M01-nguoi-dung-phan-quyen/UC-IAM-05_them-nhan-vien-moi.md). Tính năng F-IAM-03. Theo ecc:plan + tdd-workflow.
->
-> **Trạng thái: chưa dựng. Cần migration MỚI và có phụ thuộc chặn vào M02. Chưa viết code, chưa viết migration runnable — chờ Duy chốt các quyết định ở §5–§6.**
+> UC nguồn: `business/product-docs/product-usecase/M01-nguoi-dung-phan-quyen/UC-IAM-05_them-nhan-vien-moi.md`; blueprint §8, §14.1. Cập nhật trước code ngày 2026-10-01.
 
-## 1. Phát hiện quan trọng — phụ thuộc M02 (đang chặn)
+## 1. Quyết định triển khai
 
-UC-IAM-05 (tiền điều kiện 2) cần danh mục nền của **M02**: location đang hoạt động (UC-MDM-01), phòng ban (UC-MDM-08), mục lý do nhóm gán vai trò (UC-MDM-07).
+- API canonical: `POST /v1/employees`; lookup dùng `GET /v1/employees/create-options`.
+- Chỉ `SYSTEM_ADMIN` phạm vi `PLATFORM` được tạo. Đăng ký công khai `POST /v1/auth/register` được đóng.
+- Mời email là mặc định và dùng `admin.inviteUserByEmail`, đúng API mời người dùng của Supabase. Hạn DB đọc từ `SUPABASE_EMAIL_OTP_EXPIRY_SECONDS` (mặc định chính thức 3600 giây) và phải khớp cấu hình Email OTP Expiration trên Dashboard.
+- Nhánh mật khẩu tạm không tạo lời mời, đặt `must_change_password=true`; mật khẩu chỉ đi thẳng vào Supabase Auth và không ghi DB/audit/log.
+- Registry code dùng đủ 9 vai trò blueprint. `SYSTEM_ADMIN` không assignable; vai trò location dùng location chính làm phạm vi, vai trò platform dùng UUID nil.
+- Một lệnh chỉ nhận tối đa một vai trò ban đầu; bỏ trống vai trò là hợp lệ.
 
-Migration `01_identity_rbac_audit.sql` (392 dòng) **chỉ có** `user_profiles`, `context_role_assignments`, `audit_events`. Nó **không** có bảng `locations`, `departments`, `reasons` — chính comment trong migration 01 ghi: `context_id` không đặt FK tới bảng location "vì bảng đó thuộc module danh mục" (chưa làm).
+## 2. Migration 03
 
-Kết luận: **không build được UC-IAM-05 trước khi có nền M02** (không có bảng để tham chiếu location/phòng ban/lý do). Đây là phụ thuộc thật, khớp thứ tự M01–M04 của blueprint.
+Tạo migration mới, không sửa 01/02:
 
-**Khuyến nghị thứ tự (xem §6):** làm nền M02 (locations, departments, reasons) trước, rồi mới UC-IAM-05.
+- Mở rộng `user_profiles`: `work_email`, `primary_location_id`, `department_id`, `manager_id`, `employment_type`, `start_date`, `profile_version`, `must_change_password`; status thêm `PENDING_ACTIVATION`.
+- Unique case-insensitive cho email, unique mã nhân viên đã chuẩn hoá; FK location/department/manager và trigger chống manager tự tham chiếu/vòng lặp.
+- `activation_invites`: chỉ lưu `token_hash`, trạng thái, hạn dùng và người tạo; RLS đóng.
+- `employee_command_receipts`: biên nhận idempotency bền vững.
+- RPC `create_employee`: khóa receipt và các tham chiếu, kiểm location/department/manager/reason/role, rồi ghi profile + role tùy chọn + invite tùy chọn + một audit trong cùng transaction.
+- Supabase Auth vẫn ở ngoài transaction: service tạo Auth user trước, RPC lỗi thì bù trừ bằng `admin.deleteUser`.
 
-## 2. Tổng quan kỹ thuật UC-05
+## 3. Hợp đồng và tầng mã
 
-- **Wizard 4 bước ở client** (Đơn vị công tác → Thông tin cá nhân → Chi tiết công việc → Tài khoản và vai trò), kiểm từng bước ở trình duyệt bằng danh mục đã tải (QĐ-17), **chỉ gửi một lệnh ở bước cuối** kèm khoá chống trùng (idempotency, QĐ-01).
-- **Một lệnh tạo, nguyên tử** (BR-IAM-09): hồ sơ (Chờ kích hoạt) + dòng vai trò ban đầu + lời mời + dòng nhật ký **cùng thành công hoặc cùng không có** → dùng **một hàm Postgres gọi qua `rpc()`** (giống định hướng của repo cho thao tác có hệ quả). Phần tài khoản ở Supabase Auth không nằm trong transaction DB nên dùng **bù trừ khi lỗi** (xoá tài khoản vừa tạo) như `register` đang làm.
-- **Hai nhánh kích hoạt:** (a) mời qua email (mặc định, không ai biết mật khẩu); (b) mật khẩu tạm cho người không có email công việc (AC.1) — đặt cờ phải đổi mật khẩu, hiện mật khẩu tạm một lần, không lưu dạng đọc được.
-- **Dọn tài khoản mồ côi** (AC.5): email trùng tài khoản Auth mà không có hồ sơ/vai trò/lời mời → coi là rác lần tạo lỗi trước, xoá và tạo lại.
-- Route `POST /v1/auth/register` (đăng ký công khai) **được thay** bằng lệnh này; D-01 đề xuất đóng đăng ký công khai (chờ Q-19).
+- DTO tách theo cấu trúc wizard nhưng gửi một payload cuối; normalize email lowercase, mã nhân viên uppercase, số điện thoại về `0xxxxxxxxx`.
+- `EmployeesRepository`: lookup location/phòng ban/cấp trên/lý do, kiểm profile theo email, gọi RPC.
+- `EmployeesService`: kiểm role assignable/context; nhánh email gọi API invite để tạo Auth user và gửi thư, nhánh mật khẩu tạm gọi `createUser`; sau đó gọi RPC và bù trừ bằng xoá Auth user nếu RPC lỗi. Email đã phát trước một lỗi DB hiếm sẽ dẫn tới liên kết không dùng được, nhưng không để lại tài khoản mồ côi.
+- `EmployeesController`: `JwtAuthGuard`, `PermissionsGuard`, `SYSTEM_ADMIN/PLATFORM`, write throttle, `Idempotency-Key` UUID bắt buộc.
+- `AuthController` bỏ route register công khai; login giữ `PENDING_ACTIVATION` là chưa hoạt động cho tới UC-IAM-06.
 
-## 3. Sơ đồ trình tự (lệnh tạo ở bước cuối)
+## 4. TDD
 
-```mermaid
-sequenceDiagram
-    actor AD as Quan tri he thong
-    participant FE as Wizard 4 buoc
-    participant API as employees.controller
-    participant SVC as EmployeesService
-    participant SB as Supabase Auth
-    participant RPC as Postgres rpc(create_employee)
-    participant ML as Dich vu email
+RED trước cho normalization/DTO, mapping role context, phòng ban bắt buộc chỉ với OFFICE, cấp trên active và không tự tham chiếu, reason `ROLE_ASSIGNMENT`, role không assignable, tạo Auth rồi RPC, bù trừ khi RPC lỗi, replay idempotent và không log password.
 
-    AD->>FE: Nhap 4 buoc, bam Tao tai khoan (kem idempotency key)
-    FE->>API: POST /v1/employees
-    API->>SVC: createEmployee(dto, idempotencyKey)
-    SVC->>SVC: kiem quyen tao + quyen gan tung vai tro (BR-IAM-09)
-    SVC->>SB: admin.createUser (PENDING, email_confirm theo nhanh)
-    alt email trung tai khoan mo coi (AC.5)
-        SB-->>SVC: da ton tai
-        SVC->>SB: xoa tai khoan mo coi, tao lai
-    end
-    SVC->>RPC: create_employee(profile, role, invitation, audit)
-    alt RPC loi (EX.5)
-        RPC-->>SVC: loi
-        SVC->>SB: xoa tai khoan vua tao (bu tru)
-        SVC-->>FE: 500 ACCOUNT_CREATE_FAILED
-    else thanh cong
-        RPC-->>SVC: ok
-        alt nhanh moi email
-            SVC->>ML: gui email moi (EX.6: retry 3 lan)
-        else nhanh mat khau tam (AC.1)
-            SVC-->>FE: hien mat khau tam mot lan
-        end
-        SVC-->>FE: 200 -> mo Ho so nhan vien (Cho kich hoat)
-    end
-```
+GREEN rồi chạy typecheck, full Jest, ESLint, review security/service-role boundary. Runtime smoke RPC chỉ chạy sau khi Duy chạy migration 03; không hardcode credential, không xoá lịch sử, không commit.
 
-## 4. Thiết kế schema (đề xuất — chưa viết file runnable)
+## 5. Ngoài phạm vi UC này
 
-### 4a. Cần từ M02 (làm trước, migration riêng)
-- `locations` (id, name, type ∈ cửa hàng/kho/xưởng rang/văn phòng, status, …).
-- `departments` (id, name, location_id? hoặc theo location văn phòng, status).
-- `reasons` (id, group ∈ {gán vai trò, …}, label, status) — danh mục lý do (BR-CMN-10).
+- Danh sách/hồ sơ đầy đủ thuộc UC-IAM-15/14; sau tạo, UI hiển thị xác nhận có mã hồ sơ.
+- Kích hoạt lời mời, gửi lại và bắt buộc đổi mật khẩu thuộc UC-IAM-06/07/01/04. UC này tạo đúng trạng thái và dữ liệu nền cho các UC đó.
 
-### 4b. Bổ sung cho M01 account-management (migration này)
-- `user_profiles` thêm cột: `phone`, `job_title`, `primary_location_id` (FK `locations`), `department_id` (FK `departments`, null khi location không phải văn phòng — QĐ-13), `manager_id` (FK `user_profiles` self, BR-IAM-12 chống vòng lặp), `employment_type`, `start_date`, `profile_version` (int, cho khoá lạc quan ở UC-IAM-08), `must_change_password` (bool, mặc định false).
-- `user_profiles.status` CHECK **thêm `'PENDING_ACTIVATION'`** (hiện chỉ ACTIVE/SUSPENDED/DEACTIVATED).
-- Bảng mới `invitations` (id, user_id FK, token_hash, status ∈ {SENT, ACCEPTED, EXPIRED, REVOKED}, expires_at, created_by, created_at) — token lưu **hash**, không lưu token thô; single-use + hết hạn (BR-IAM-14).
-- Hàm `create_employee(...)` (plpgsql, `security definer`) ghi profile + role assignment + invitation + audit trong một transaction; trả id.
-- Theo quy tắc migration của repo: idempotent, bật RLS mặc định từ chối, `tg_append_only` cho bảng lịch sử (invitations không phải lịch sử → được update status), không FK `on delete` lên cột người thực hiện của bảng lịch sử.
+## 6. Trạng thái 2026-10-01
 
-### 4c. Mã lỗi mới (ở code, không phải migration)
-`PASSWORD_CHANGE_REQUIRED` (403), `EMAIL_ALREADY_REGISTERED` (409), `ROLE_NOT_ASSIGNABLE` (403), `INVALID_SUPERIOR` (400), `REASON_INVALID` (400), `EMAIL_SEND_FAILED` (502) — thêm vào `error-code.const.ts`.
-
-## 5. Quyết định cần Duy chốt trước khi viết migration + build
-
-1. **Tên nhóm API:** blueprint §14.1 ghi `/v1/employees` + `/v1/org-chart`, §19 ghi `/v1/users`. Cần thống nhất một tên. **Đề xuất: `/v1/employees`** (đúng ngôn ngữ nghiệp vụ, khớp §14.1).
-2. **D-01 (Q-19):** đóng `POST /v1/auth/register` công khai và thay bằng lệnh tạo của admin? **Đề xuất: đóng** (công cụ nội bộ, không cần tự đăng ký).
-3. **Lời mời hiệu lực bao lâu** (TBD-3) và **số lần retry email** (TBD-6) — đề xuất 72 giờ / 3 lần (giá trị mặc định để viết test, chờ xác nhận).
-4. **SYSTEM_ADMIN được gán những vai trò nào ở bước 9** (TBD-5) — đề xuất mọi vai trò trừ SYSTEM_ADMIN (BR-IAM-05).
-5. **Danh mục vai trò thật:** `role.enum.ts` hiện có 4 mã tạm; cần chốt bộ 9 vai trò của blueprint trước khi gán được.
-
-## 6. Thứ tự triển khai khuyến nghị
-
-1. **Nền M02** (migration 02: `locations`, `departments`, `reasons` + RLS; và UC-MDM-01/07/08 CRUD) — foundation, đơn giản hơn, và UC-05 cần nó.
-2. **Migration 03**: bổ sung `user_profiles` + `invitations` + `PENDING_ACTIVATION` + hàm `create_employee` (theo §4b).
-3. **Module UC-IAM-05** (`employees`): controller + service + repository + DTO + model + RPC, theo TDD.
-4. Cùng lúc mở được **UC-IAM-01.AC.1 / UC-IAM-04.AC.1-AC.2** (mật khẩu tạm) vì đã có `PENDING_ACTIVATION` + `must_change_password`.
-
-## 7. Kế hoạch test (TDD, khi build)
-
-- Unit: validate DTO từng ô (bảng ràng buộc ở Ghi chú UC), chuẩn hoá email/mã NV/điện thoại; service kiểm quyền + trùng email/mã NV + cấp trên hợp lệ; nhánh bù trừ khi RPC lỗi; idempotency.
-- Hàm Postgres `create_employee`: test nguyên tử (một phần lỗi → không còn gì).
-- e2e: `POST /v1/employees` hình dạng lỗi (EX.1–EX.7), cần Supabase thật cho luồng đầy đủ.
-
-## 8. Việc chờ Duy
-
-Chốt §5 (nhất là tên API + đóng register + bộ vai trò) và §6 (làm M02 trước). Sau khi chốt, em viết migration runnable (02 + 03) để Duy chạy, rồi build module theo TDD và dừng ở cổng manual test.
+- BE/FE đã dựng; backend 74 test xanh, typecheck/lint/build xanh; frontend 145 test xanh, typecheck/build xanh, lint không có error (7 warning cũ).
+- Migration `03_employee_onboarding.sql` đã chạy; `npm run gen:types` và smoke RPC thực tế đã xanh cho replay idempotency, chặn email trùng, trạng thái `PENDING_ACTIVATION`, cờ `must_change_password` và audit.
+- Còn chờ manual test UI của Duy tại `/employees/new`.
