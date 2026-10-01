@@ -4,10 +4,13 @@ import { createHash, randomBytes } from 'node:crypto';
 import { auditContextOf } from '@/audit/audit.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ErrorCode } from '@/common/i18n/error-code.const';
+import { type PaginatedResult } from '@/common/interfaces/paginated-result.interface';
 import { SupabaseAdminService } from '@/supabase/supabase-admin.service';
 import { ROLE_CATALOG } from '@/utils/enums/role.enum';
+import { sanitizeSearchTerm } from '@/utils/utils';
 import { type AuthRequest } from '@/auth/auth.interface';
 import { type CreateEmployeeDto } from './dto/create-employee.dto';
+import { type ListEmployeesQueryDto } from './dto/list-employees.dto';
 import {
   normalizeEmployeeCode,
   normalizeEmployeeEmail,
@@ -15,7 +18,11 @@ import {
   optionalTrim,
   resolveInitialRoleContext,
 } from './employee-normalization';
-import { type CreatedEmployeeModel } from './employee.model';
+import {
+  type CreatedEmployeeModel,
+  type EmployeeListItemModel,
+  toEmployeeListItemModel,
+} from './employee.model';
 import { EmployeesRepository } from './employees.repository';
 
 @Injectable()
@@ -51,6 +58,27 @@ export class EmployeesService {
         contextType: role.contextType,
         descriptionVi: role.descriptionVi,
       })),
+    };
+  }
+
+  async list(
+    query: ListEmployeesQueryDto,
+  ): Promise<PaginatedResult<EmployeeListItemModel>> {
+    const page = await this.repository.listEmployees({
+      // ⚠️ Làm sạch từ khoá ở đúng một chỗ (EX.3): bỏ `% _ , ( )`. Khi chỉ còn ký tự đặc biệt,
+      // `sanitizeSearchTerm` trả null → coi như không có từ khoá, không quét cả bảng.
+      search: sanitizeSearchTerm(query.search),
+      locationId: query.locationId ?? null,
+      departmentId: query.departmentId ?? null,
+      roleCode: query.roleCode ?? null,
+      status: query.status ?? null,
+      employmentType: query.employmentType ?? null,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    return {
+      ...page,
+      items: page.items.map(toEmployeeListItemModel),
     };
   }
 

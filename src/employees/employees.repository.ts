@@ -1,11 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ErrorCode } from '@/common/i18n/error-code.const';
+import {
+  type PaginatedResult,
+  paginated,
+} from '@/common/interfaces/paginated-result.interface';
 import { BaseRepository } from '@/common/repository/base.repository';
 import { mapSupabasePostgrestError } from '@/error/supabase-postgres.mapper';
 import { type Database } from '@/supabase/database.types';
 import { SupabaseAdminService } from '@/supabase/supabase-admin.service';
 import { SupabaseTable } from '@/supabase/supabase.define';
+import { type EmployeeDirectoryRow } from './employee.model';
+
+export interface ListEmployeesArgs {
+  search: string | null;
+  locationId: string | null;
+  departmentId: string | null;
+  roleCode: string | null;
+  status: string | null;
+  employmentType: string | null;
+  page: number;
+  pageSize: number;
+}
 
 type GeneratedCreateEmployeeArgs =
   Database['public']['Functions']['create_employee']['Args'];
@@ -70,6 +86,31 @@ export class EmployeesRepository extends BaseRepository {
       managers: managers.data ?? [],
       reasons: reasons.data ?? [],
     };
+  }
+
+  async listEmployees(
+    args: ListEmployeesArgs,
+  ): Promise<PaginatedResult<EmployeeDirectoryRow>> {
+    const { data, error } = await this.db.rpc('list_employees', {
+      p_search: args.search,
+      p_location_id: args.locationId,
+      p_department_id: args.departmentId,
+      p_role_code: args.roleCode,
+      p_status: args.status,
+      p_employment_type: args.employmentType,
+      p_limit: args.pageSize,
+      p_offset: (args.page - 1) * args.pageSize,
+    });
+    if (error) mapSupabasePostgrestError(error);
+    const rows = (data ?? []) as Array<
+      EmployeeDirectoryRow & { total_count: number }
+    >;
+    // ⚠️ `total_count` là `count(*) over()` của tập đã lọc, giống nhau trên mọi dòng của trang.
+    // Trang rỗng (không khớp) → không có dòng nào → tổng 0 (EX.1).
+    const total = rows.length > 0 ? Number(rows[0].total_count) : 0;
+    // `total_count` còn dính trên mỗi dòng nhưng không bao giờ ra API: service map từng dòng
+    // qua `toEmployeeListItemModel`, chỉ nhặt các trường đã khai.
+    return paginated(rows, total, args.page, args.pageSize);
   }
 
   async findLocation(id: string) {

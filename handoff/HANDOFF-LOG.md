@@ -14,6 +14,26 @@
 > ```
 
 ---
+ 
+## 2026-10-01 (khuya) — Claude → Duy/Codex — UC-IAM-15 (danh sách nhân viên) full BE+FE
+- **Vừa xong UC-IAM-15** theo đúng quy trình (đọc UC → plan BE/FE + DESIGN-README wireframe → TDD → verify).
+  - Plan: `business/product-docs/product-implementation/UC-IAM-15/README.md` (BE) + FE `README.md` + `DESIGN-README.md`.
+  - BE: `GET /v1/employees` (SYSTEM_ADMIN/PLATFORM, THROTTLE_SEARCH). Migration **05_employee_directory.sql**: RPC `list_employees` (đọc, không ghi) — unaccent search tên/email/mã, lọc location/phòng ban/vai trò(cửa sổ hiệu lực)/trạng thái/loại hình, trạng thái lời mời mới nhất (SENT quá hạn→EXPIRED), `count(*) over()` phân trang. DTO/repo/service/mapper + test `employees.directory.spec.ts`.
+  - FE: trang `/employees` (sidebar "Nhân viên"): ô tìm debounce 300ms + 5 filter (Select primitives, server-side), bảng + phân trang, badge trạng thái, nhánh Chờ kích hoạt hiện trạng thái lời mời + nút "Gửi lại lời mời" **disabled (chỗ đặt cho UC-IAM-07)**. i18n vi+en. Test `employees-columns.test.tsx`.
+- Kiểm chứng: BE tsc 0 · jest **100/100** · eslint exit 0 · nest build xanh. FE typecheck 0 · lint 0 error (8 warning TanStack cố hữu) · vitest **157/157** · build xanh.
+- **Bảo mật (self-review đã sửa):** migration 05 chỉ `grant execute … to service_role`, KHÔNG `authenticated` — tránh người đăng nhập thường gọi thẳng RPC qua Supabase REST lấy email/điện thoại mọi người.
+- Duy đã manual test: chưa. **Migration cần Duy chạy (theo thứ tự): `05_employee_directory.sql`, rồi `06_rpc_execute_hardening.sql`**, rồi `npm run gen:types` + smoke RPC. Migration chưa chạy → `database.types.ts` đã thêm tay type `list_employees` (sẽ bị gen:types ghi đè).
+- **Reviewer (database + security) đã chạy — đã sửa theo phát hiện:**
+  - **HIGH (cả 2 reviewer):** `revoke from public` KHÔNG gỡ grant execute mà Supabase tự cấp cho anon/authenticated → RPC SECURITY DEFINER gọi thẳng được qua `/rest/v1/rpc/*`, bỏ qua guard Nest. Lỗ hổng này có ở MỌI RPC cũ (02l–04), không riêng 05. → migration 05 đổi thành `revoke … from public, anon, authenticated`; thêm **migration 06** gỡ execute anon/authenticated trên mọi function `public` + chặn default privileges (service_role giữ nguyên; backend không ảnh hưởng vì dùng service_role).
+  - **Medium:** `unaccent` có thể ở schema `extensions` trên Supabase → đổi `search_path = public, extensions, pg_temp` (tránh lỗi runtime). Clamp `p_limit ≤ 100` ngay trong SQL. Thêm index `idx_activation_invites_user_created (user_id, created_at desc)` cho lateral.
+  - Còn lại là minor/info: search full-scan (ổn ở quy mô danh bạ), `ACTIVATING` quá hạn hiển thị thô (hiếm, transient), đọc PII không ghi audit (đúng hậu điều kiện UC).
+- Làm tiếp (SAU khi Duy xác nhận UC-IAM-15): **UC-IAM-07 (Gửi lại lời mời kích hoạt)** — bật nút trên trang này + RPC tạo invite mới/đổi invite cũ→REPLACED + audit + `inviteUserByEmail` lại; đóng route `resend-confirmation` công khai (D-01); mã lỗi `ACCOUNT_STATE_CONFLICT`(409), `EMAIL_SEND_FAILED`(502).
+- Bẫy/lưu ý: trang danh sách dùng `Select` primitives (không `SelectDropdown` vì nó bọc `FormControl` cần form context). Dòng/tên nhân viên CHƯA điều hướng hồ sơ (UC-IAM-14 chưa có). Không commit.
+
+## 2026-10-01 (tối) — Claude → Duy/Codex — copy mật khẩu tạm + chốt thứ tự UC kế
+- Nút copy mật khẩu tạm (màn thành công `/employees/new`): đã có sẵn, làm rõ hơn (icon Copy/Check + mật khẩu full-width). typecheck/lint/build xanh.
+- **Chốt thứ tự UC kế** (Duy gợi ý cần trang quản lý tài khoản + theo dõi đã activate chưa + resend): UC-IAM-07 (gửi lại lời mời) "Bao gồm UC-IAM-15" và chạy trên màn Hồ sơ/Danh sách nhân viên (chưa có) → làm **UC-IAM-15 (danh sách nhân viên + trạng thái kích hoạt: đã/chưa activate, trạng thái lời mời SENT/EXPIRED/…) TRƯỚC**, rồi **UC-IAM-07 (nút Gửi lại lời mời trên trang đó + RPC tạo invite mới/đổi invite cũ sang REPLACED + audit + `inviteUserByEmail` lại; đóng route `resend-confirmation` công khai cũ theo D-01)**.
+- BE sẵn có: bảng `activation_invites` + trạng thái (migration 03/04). Chưa bắt đầu code UC-IAM-15/07 — nên /compact trước cho context gọn.
 
 ## 2026-10-01 (chiều) — Claude → Duy/Codex — polish UC-IAM-05 UI + date picker chung
 - Theo feedback manual test của Duy ở `/employees/new`: thay native `<select>` → `SelectDropdown`; canh field `min-h-11 sm:min-h-9` (hết lệch + touch 44px); nút `size='lg'` + submit `min-w-32`/`aria-busy`; copy "Location"→"Địa điểm" toàn bộ vi (employees + repair-vendors + nhãn `LOCATION_CLOSE`); step 1 đưa ghi chú phòng ban xuống full-width (hết lệch hàng); lưới field `items-start` (lỗi 1 ô không đẩy ô cùng hàng); xoá lỗi `root` khi đổi bước.
