@@ -8,6 +8,7 @@ import {
 import { EmployeesService } from './employees.service';
 import { ListEmployeesQueryDto } from './dto/list-employees.dto';
 import { RevokeRoleAssignmentDto } from './dto/revoke-role-assignment.dto';
+import { ChangeAccountStatusDto } from './dto/change-account-status.dto';
 
 function row(
   overrides: Partial<EmployeeDirectoryRow> = {},
@@ -183,6 +184,7 @@ describe('EmployeesService role assignments (UC-IAM-10)', () => {
       }),
       findRoleAssignments: jest.fn().mockResolvedValue([]),
       listActiveLocations: jest.fn().mockResolvedValue([]),
+      listAccountStatusReasons: jest.fn().mockResolvedValue([]),
       grantRolesViaRpc: jest.fn().mockResolvedValue([
         {
           id: 'ra-1',
@@ -368,5 +370,159 @@ describe('RevokeRoleAssignmentDto', () => {
 
   it('accepts a real reason', () => {
     expect(validate({ reason: 'Chuyển điểm' })).toHaveLength(0);
+  });
+});
+
+describe('EmployeesService.changeAccountStatus (UC-IAM-12)', () => {
+  const req = {
+    user: { sub: 'actor-1' },
+    headers: {},
+    ip: '127.0.0.1',
+  } as never;
+
+  function setup(
+    row: { id: string; status: 'ACTIVE' | 'SUSPENDED'; is_replay: boolean } = {
+      id: 'emp-1',
+      status: 'SUSPENDED',
+      is_replay: false,
+    },
+  ) {
+    const repository = {
+      changeAccountStatusViaRpc: jest.fn().mockResolvedValue(row),
+      revokeEmployeeSessions: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new EmployeesService(
+      repository as never,
+      {} as never,
+      {} as never,
+    );
+    return { service, repository };
+  }
+
+  it('forwards actor, action and selected reason to the transactional RPC', async () => {
+    const { service, repository } = setup();
+    await service.changeAccountStatus(
+      'emp-1',
+      {
+        action: 'LOCK',
+        reasonCodeId: '11111111-1111-4111-8111-111111111111',
+        reasonNote: 'Nghỉ dài ngày',
+      },
+      'cmd-1',
+      req,
+    );
+    expect(repository.changeAccountStatusViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        p_employee_id: 'emp-1',
+        p_action: 'LOCK',
+        p_reason_code_id: '11111111-1111-4111-8111-111111111111',
+        p_reason_note: 'Nghỉ dài ngày',
+        p_actor_id: 'actor-1',
+        p_command_key: 'cmd-1',
+      }),
+    );
+  });
+
+  it('revokes all auth sessions after a new LOCK and reports success', async () => {
+    const { service, repository } = setup();
+    const result = await service.changeAccountStatus(
+      'emp-1',
+      {
+        action: 'LOCK',
+        reasonCodeId: '11111111-1111-4111-8111-111111111111',
+      },
+      'cmd-1',
+      req,
+    );
+    expect(repository.revokeEmployeeSessions).toHaveBeenCalledWith('emp-1');
+    expect(result).toEqual({
+      id: 'emp-1',
+      status: 'SUSPENDED',
+      sessionRevocation: 'SUCCEEDED',
+    });
+  });
+
+  it('keeps the account locked and reports FAILED if proactive session revocation fails', async () => {
+    const { service, repository } = setup();
+    repository.revokeEmployeeSessions.mockRejectedValueOnce(
+      new Error('auth unavailable'),
+    );
+    await expect(
+      service.changeAccountStatus(
+        'emp-1',
+        {
+          action: 'LOCK',
+          reasonCodeId: '11111111-1111-4111-8111-111111111111',
+        },
+        'cmd-1',
+        req,
+      ),
+    ).resolves.toEqual({
+      id: 'emp-1',
+      status: 'SUSPENDED',
+      sessionRevocation: 'FAILED',
+    });
+  });
+
+  it('does not revoke sessions again for an idempotent replay or UNLOCK', async () => {
+    const replay = setup({ id: 'emp-1', status: 'SUSPENDED', is_replay: true });
+    await replay.service.changeAccountStatus(
+      'emp-1',
+      {
+        action: 'LOCK',
+        reasonCodeId: '11111111-1111-4111-8111-111111111111',
+      },
+      'cmd-1',
+      req,
+    );
+    expect(replay.repository.revokeEmployeeSessions).not.toHaveBeenCalled();
+
+    const unlock = setup({ id: 'emp-1', status: 'ACTIVE', is_replay: false });
+    const result = await unlock.service.changeAccountStatus(
+      'emp-1',
+      {
+        action: 'UNLOCK',
+        reasonCodeId: '22222222-2222-4222-8222-222222222222',
+      },
+      'cmd-2',
+      req,
+    );
+    expect(unlock.repository.revokeEmployeeSessions).not.toHaveBeenCalled();
+    expect(result.sessionRevocation).toBe('NOT_REQUIRED');
+  });
+});
+
+describe('ChangeAccountStatusDto', () => {
+  function validate(input: Record<string, unknown>) {
+    return validateSync(plainToInstance(ChangeAccountStatusDto, input));
+  }
+
+  it('accepts only LOCK or UNLOCK with a UUID reason', () => {
+    expect(
+      validate({
+        action: 'LOCK',
+        reasonCodeId: '11111111-1111-4111-8111-111111111111',
+      }),
+    ).toHaveLength(0);
+    expect(
+      validate({ action: 'DELETE', reasonCodeId: 'not-a-uuid' }),
+    ).not.toHaveLength(0);
+  });
+
+  it('trims the optional note and caps it at 500 characters', () => {
+    const dto = plainToInstance(ChangeAccountStatusDto, {
+      action: 'LOCK',
+      reasonCodeId: '11111111-1111-4111-8111-111111111111',
+      reasonNote: '  Nghỉ dài ngày  ',
+    });
+    expect(validateSync(dto)).toHaveLength(0);
+    expect(dto.reasonNote).toBe('Nghỉ dài ngày');
+    expect(
+      validate({
+        action: 'LOCK',
+        reasonCodeId: '11111111-1111-4111-8111-111111111111',
+        reasonNote: 'x'.repeat(501),
+      }),
+    ).not.toHaveLength(0);
   });
 });

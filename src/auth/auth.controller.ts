@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -14,6 +15,7 @@ import {
   THROTTLE_AUTH,
   THROTTLE_EMAIL,
   THROTTLE_LOGIN,
+  THROTTLE_WRITE,
 } from '@/common/constants/throttle.const';
 import { AuthService } from './auth.service';
 import { ActivationService } from './activation.service';
@@ -21,6 +23,7 @@ import { AuthRequest } from './auth.interface';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdatePreferredLocaleDto } from './dto/update-preferred-locale.dto';
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -50,6 +53,7 @@ import {
  * | `logout-all`          | ✅    | Như trên |
  * | `change-password`     | ✅    | Chỉ chủ tài khoản đổi được |
  * | `me`                  | ✅    | Trả dữ liệu của người đang đăng nhập |
+ * | `me/locale`           | ✅    | Chỉ chủ tài khoản đổi ngôn ngữ của chính mình (UC-IAM-14) |
  *
  * ⚠️ CÁC ROUTE KHÔNG CÓ GUARD Ở BẢNG TRÊN LÀ TOÀN BỘ BỀ MẶT CÔNG KHAI CỦA HỆ THỐNG XÁC THỰC.
  * Thêm một route không guard vào đây là mở rộng bề mặt đó, nên phải có lý do ghi rõ trong
@@ -215,5 +219,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getAuthUser(@Req() req: AuthRequest) {
     return this.authService.getAuthUser(req);
+  }
+
+  /** Chỉ đổi lựa chọn ngôn ngữ của chính người trong phiên; không nhận mã người dùng từ client. */
+  @Patch('me/locale')
+  @Throttle({ default: THROTTLE_WRITE })
+  @UseGuards(JwtAuthGuard)
+  async updatePreferredLocale(
+    @Req() req: AuthRequest,
+    @Body() dto: UpdatePreferredLocaleDto,
+  ) {
+    return this.authService.updatePreferredLocale(req.user.sub, dto);
   }
 }

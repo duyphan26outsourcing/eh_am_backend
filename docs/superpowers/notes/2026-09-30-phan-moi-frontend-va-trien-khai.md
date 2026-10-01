@@ -290,3 +290,12 @@ Mã lỗi mới sẽ thêm khi build (không phải migration): PASSWORD_CHANGE_
 **Kế tiếp:** UC-MDM-05 (nhà cung cấp) → UC-MDM-06 (đơn vị sửa chữa) → UC-IAM-05.
 
 > Bàn giao đầy đủ cho Codex (khi hết quota Claude): xem `HANDOFF-CODEX.md` ở gốc repo backend.
+## 2026-10-01 — Hoàn tất M01 IAM-08/12/13/14
+
+- UC-IAM-12: khoá/mở khoá tài khoản, migration 12 đã chạy.
+- UC-IAM-08: cập nhật hồ sơ và đổi email có optimistic concurrency + trạng thái đồng bộ Auth, migration 13 đã chạy.
+- UC-IAM-13: cho nghỉ việc, đóng vai trò và bàn giao cấp dưới trong transaction; tài sản tạm fail-closed cho tới M03, migration 14 đã chạy.
+- UC-IAM-14: mở rộng `GET /auth/me`, thêm `PATCH /auth/me/locale` (không audit/version), trang `/profile` và trạng thái tài khoản chưa có vai trò.
+- Trang `/employees` đã bổ sung nhãn nhìn thấy được cho đủ năm bộ lọc.
+- Kiểm chứng cuối: backend 138 test; frontend 174 test; typecheck/lint/build xanh (lint frontend còn cảnh báo thư viện React Compiler đã biết).
+

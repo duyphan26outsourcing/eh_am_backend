@@ -15,6 +15,48 @@
 
 ---
 
+## 2026-10-01 — Claude → Duy/Codex — M01 XONG CODE (UC-08/12/13/14) + ĐÃ REVIEW & SỬA; chờ chạy migration 12/13/14
+- **Bối cảnh:** Codex đã làm xong CODE của cả UC-IAM-08/12/13/14 (không chỉ 12 + dở 08 như entry cũ ngay dưới — entry đó viết sớm, chưa cập nhật). Cả hai repo XANH khi em nhận: BE tsc 0 · eslint 0 · **jest 138/138** · build; FE typecheck 0 · lint 0 error/9 warning cũ · **vitest 174/174** · build.
+- **Em (Claude) đã làm:** chạy 3 review (DB cho migration 12/13/14; security cho admin-mutations 08/12/13; security cho self-service 14). Kết quả: UC-14 sạch; 08/12/13 có lỗi thật mà test không bắt. Đã SỬA trực tiếp vào 12/13/14 (CHƯA CHẠY nên sửa file là đúng luật; các file idempotent `create or replace`/`add column if not exists`):
+  - **14 (terminate):** (H) thêm `revoked_by is null` vào UPDATE đóng vai trò — nếu không, một vai trò sắp-hiệu-lực ĐÃ thu hồi (effective_to tương lai) làm trigger close-only raise → không bao giờ nghỉ việc được. (H) thêm kiểm `p_new_manager_id` không phải hậu duệ của người nghỉ (recursive CTE) → tránh self-manager/vòng. null-safe version; `context_type='PLATFORM'` cho đếm admin; `current_date`→giờ VN; re-raise INVALID_SUPERIOR/HISTORY_IMMUTABLE thay vì nuốt thành AUDIT_WRITE_FAILED. (Service đã tự revoke session sau terminate — OK.)
+  - **13 (profile/email):** (H) đảo thứ tự lock — lấy advisory `iam.organization_chart` TRƯỚC `for update` (khớp 14) để không deadlock khi đổi cấp trên song song lúc nghỉ việc. null-safe version; validation null-safe + pattern employee_code + độ dài; location phải ACTIVE & KHÔNG EXTERNAL khi đổi + `for share`; non-OFFICE có phòng ban → báo `DEPARTMENT_NOT_ALLOWED` (không nuốt). **change_email: (sec H1) chặn tự đổi email của chính mình & chặn đổi email tài khoản SYSTEM_ADMIN** (chống chiếm tài khoản) → ErrorCode mới `EMAIL_CHANGE_TARGET_FORBIDDEN`. `mark_employee_email_sync` chỉ ghi khi đang `PENDING`.
+  - **12 (lock):** `revoke_employee_sessions` chỉ xóa phiên khi status đang SUSPENDED/DEACTIVATED (tránh xóa nhầm phiên khi UNLOCK xen vào).
+  - UC-14 (cheap): DTO `@IsIn` thêm message `VALUE_OUT_OF_DOMAIN`; thêm dòng `me/locale` vào bảng guard trong auth.controller.
+  - BE verify lại sau sửa: tsc 0 · eslint 0 · jest 138/138.
+- **ĐỂ LẠI CHO DUY QUYẾT (chính sách/thiết kế, em KHÔNG tự làm):**
+  1. PII trong bảng append-only: `audit_events.changes` + `*_command_receipts.payload` lưu email/phone/tên vĩnh viễn → xung đột quyền xoá dữ liệu cá nhân (nên mask/hash). Áp cả cho create_employee cũ.
+  2. Break-glass admin (`app_metadata.role='admin'`): nếu có `user_profiles` mà không có dòng SYSTEM_ADMIN thì guard last-admin của 12/14 không bảo vệ → có thể bị khóa/nghỉ/đổi email. Cần quyết cách bảo vệ.
+  3. Email↔Auth lệch khi sync lỗi (M2/M3): hiện commit DB trước, Auth sau, lỗi→FAILED + REQUEST_TIMEOUT; chưa có RPC bù/khôi phục & chưa rõ GoTrue có vô hiệu link mời cũ khi đổi email PENDING_ACTIVATION. Cần endpoint resync + mã lỗi `AUTH_EMAIL_SYNC_FAILED` riêng, và cân nhắc `email_confirm:false`/xác minh.
+  4. `departments.manager_id`: terminate chưa gỡ người nghỉ khỏi vai trò trưởng phòng (chờ module phòng ban/tài sản).
+  5. (LOW) `updatePreferredLocale` (auth.service) không bump `profile_version` → PATCH hồ sơ cũ của admin có thể ghi đè; cân nhắc bump hoặc bỏ locale khỏi form admin. `mark_employee_email_sync` nên khớp theo email để chống đua triệt để.
+- Duy đã manual test: chưa.
+- **Migration cần Duy chạy (THEO THỨ TỰ):** **12 → 13 → 14** (bản đã sửa), rồi `npm run gen:types`. (01–11 đã chạy.) Các file idempotent nên chạy lại an toàn kể cả lỡ chạy bản cũ.
+- **Làm tiếp:** M01 coi như XONG CODE (chờ Duy chạy migration + manual test). Tiếp theo là **M03** (Duy cần gấp M03/M04). Khi bắt đầu M03: đọc use case ở `business/product-docs/product-usecase/`, theo đúng nhịp CLAUDE.md (đọc UC → plan BE + FE README + DESIGN-README trước khi code → TDD → review → verify), KHÔNG thêm module vào `app.module.ts` khi UC chưa duyệt.
+- Bẫy/lưu ý: migrations 01–11 KHÔNG sửa; 12/13/14 vừa sửa, chưa chạy. Mọi RPC mới revoke/grant. Enum→i18n vi+en. Không commit. GateGuard hook bắt nêu facts trước khi tạo/sửa file đầu tiên.
+
+## 2026-10-01 — Codex → Codex/Claude — UC-IAM-12 XONG; UC-IAM-08 ĐÃ PLAN + BẮT ĐẦU TDD
+- Vừa xong: UC-IAM-12 full BE/FE/docs/review/verify; chi tiết ở entry ngay dưới. **Bổ sung review chéo:** migration 12 đã sửa để mỗi LOCK/UNLOCK tăng `profile_version` (UC-08 yêu cầu mọi admin mutation làm stale form bị conflict). Migration 12 chưa chạy nên sửa trực tiếp file 12 là đúng luật.
+- UC-IAM-08 đã làm: đọc toàn UC; viết đủ BE `product-implementation/UC-IAM-08/README.md`, FE README và `DESIGN-README.md`; chốt kiến trúc profile route + update command + email command/sync state. TDD DTO đã đi RED rồi GREEN **4/4**.
+  - File mới: `src/employees/dto/update-employee-profile.dto.ts`, `change-employee-email.dto.ts`, `employee-profile.spec.ts`.
+  - DTO đã chuẩn hóa blank nullable fields, email lowercase, phone VN, employment type, UUID refs, ngày, `profileVersion`.
+- Duy đã manual test: chưa.
+- Migration cần Duy chạy: **12_lock_unlock_account.sql** (đã gồm tăng profile_version), rồi gen types. **Chưa có migration 13**; đừng chạy file UC-08 nào cho tới khi code tiếp hoàn tất.
+- Đang dở: UC-IAM-08 chưa có migration 13/RPC, controller-service-repository/model, profile UI/edit dialog/change-email dialog. Docs mô tả contract dự kiến; tiếp tục TDD service/repository trước production.
+- Làm tiếp: hoàn tất UC-IAM-08 theo docs → full verify/review → UC-IAM-13 → UC-IAM-14 → M03. Không nhảy qua UC-08.
+- Bẫy: đổi hồ sơ thường phải validate active reference **chỉ khi field đổi**; no-op không version/audit; manager concurrency cần khóa + cycle check; đổi email DB/audit commit trước Auth, retry 3 và đánh dấu sync FAILED nếu hết retry. Không commit, không sửa migration 01–11.
+
+## 2026-10-01 — Codex → Codex/Claude — UC-IAM-12 XONG CODE, chờ chạy migration 12
+- Vừa xong: **UC-IAM-12 — Khóa/mở khóa tài khoản**, đủ BE plan + FE README + `DESIGN-README.md`, TDD, review và verify.
+  - BE: `POST /v1/employees/:id/account-status`, SYSTEM_ADMIN/PLATFORM, throttle + Idempotency-Key. Migration 12 có RPC `change_employee_account_status`: `ACTIVE→SUSPENDED` / `SUSPENDED→ACTIVE`, tăng `profile_version`, reason đúng `ACCOUNT_LOCK`/`ACCOUNT_UNLOCK`, audit cùng transaction, receipt gắn payload, chặn tự khóa, chặn khóa quản trị hệ thống cuối cùng bằng advisory transaction lock để đóng race. Sau commit, RPC riêng xóa `auth.sessions`; nếu bước này lỗi vẫn giữ tài khoản SUSPENDED và trả `sessionRevocation=FAILED` vì guard đã chặn request kế tiếp.
+  - FE: hành động cạnh badge trên `/employees/$id`, ẩn khi chính mình/trạng thái không hỗ trợ; dialog lý do + ghi chú bắt buộc với mục tự do, copy vi/en, a11y/touch target/responsive, toast riêng khi phiên chưa thu hồi hết. `GET /access` nay trả `accountStatusReasons`.
+  - ErrorCode mới: `SELF_ACCOUNT_LOCK_FORBIDDEN`, `LAST_SYSTEM_ADMIN_REQUIRED`. `database.types.ts` đã thêm tay 2 RPC để full-flow không bị chặn trước khi chạy SQL.
+- Kiểm chứng: BE eslint 0 · Jest **125/125** · build xanh. FE typecheck 0 · lint 0 error (9 warning cũ sau khi bỏ warning mới của dialog) · Vitest **170/170** · build xanh. Test đã đi RED rồi GREEN.
+- Duy đã manual test: chưa.
+- Migration cần Duy chạy: **`sql-docs/migrations/12_lock_unlock_account.sql`**, sau đó `npm run gen:types` (gen sẽ thay phần type thêm tay bằng schema thật).
+- Đang dở / chưa xong: chưa smoke runtime vì migration 12 chưa chạy. Không commit.
+- Làm tiếp: **UC-IAM-08 (cập nhật hồ sơ)** → 13 → 14, rồi mới M03. Đọc UC và viết đủ 3 docs trước code.
+- Bẫy/lưu ý: 01–11 đã chạy, không sửa. Migration 12 có function đụng `auth.sessions`; sau khi chạy cần manual test khóa một user đang đăng nhập ở tab khác, tab đó phải bị chặn ở request kế tiếp và refresh không dùng lại được.
+
 ## 2026-10-01 — Claude → Codex/Claude — Smoke script + UC-IAM-11 XONG CODE
 - Vừa xong 1: **`tools/smoke-employee-directory.mjs`** — smoke + seed cho các UC đã dev (IAM-05/15/07/09/10). HTTP qua admin login (`SMOKE_ADMIN_EMAIL/PASSWORD`, `API_BASE` mặc định :3006). Seed vài nhân viên mẫu (email cố định `smoke.dir.*`, idempotent); smoke IAM-15 (list + lọc status/employmentType/search + status ngoài miền 400), IAM-09 (org-chart 200), IAM-10 (access options loại SYSTEM_ADMIN + guard ACCOUNT_INACTIVE khi gán cho PENDING). Nhánh **cấp quyền thật** (happy-path migration 10) bật khi có `SUPABASE_URL/SUPABASE_SECRET_KEY`: tạo + kích hoạt 1 nhân viên ACTIVE mẫu (`smoke.dir.active@example.com` / `SmokeEH#2026aA`) rồi cấp LOCATION_MANAGER + verify. IAM-07 resend **gửi email thật** → chỉ chạy khi `SMOKE_ALLOW_INVITE_EMAILS=true`. `node --check` OK; Duy chạy để seed + kiểm (cần server :3006 chạy).
 - Vừa xong 2: **UC-IAM-11 — Thu hồi vai trò theo location**, đủ plan BE + FE + `DESIGN-README.md`, TDD, review (DB + security), verify.

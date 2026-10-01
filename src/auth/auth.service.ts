@@ -6,7 +6,11 @@ import { mapSupabaseAuthError } from '@/error/supabase-auth.mapper';
 import { mapSupabasePostgrestError } from '@/error/supabase-postgres.mapper';
 import { SupabaseAdminService } from '@/supabase/supabase-admin.service';
 import { SupabaseAuthService } from '@/supabase/supabase-auth.service';
-import { UserProfileTableName } from '@/supabase/supabase.define';
+import {
+  ContextRoleAssignmentTableName,
+  SupabaseTable,
+  UserProfileTableName,
+} from '@/supabase/supabase.define';
 import { AuditEvent } from '@/utils/enums/audit-event.enum';
 import { ContextType } from '@/utils/enums/role.enum';
 import {
@@ -27,6 +31,7 @@ import { AccessScopeService } from './access-scope.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdatePreferredLocaleDto } from './dto/update-preferred-locale.dto';
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -826,25 +831,147 @@ export class AuthService {
       throw new AppException(ErrorCode.UNAUTHORIZED);
     }
 
-    const assignments = await this.accessScope.findActiveAssignments(
-      req.user.sub,
+    const now = new Date().toISOString();
+    const [profileResult, assignmentsResult] = await Promise.all([
+      this.supabaseAdminService.client
+        .from(UserProfileTableName)
+        .select(
+          'display_name, employee_code, work_email, phone, job_title, employment_type, preferred_locale, primary_location_id, department_id, manager_id',
+        )
+        .eq('id', req.user.sub)
+        .maybeSingle(),
+      this.supabaseAdminService.client
+        .from(ContextRoleAssignmentTableName)
+        .select(
+          'role_code, context_type, context_id, effective_from, effective_to',
+        )
+        .eq('subject_type', 'USER')
+        .eq('subject_id', req.user.sub)
+        // Giữ cả vai trò sắp hiệu lực; chỉ loại các dòng đã hết hạn.
+        .or(`effective_to.is.null,effective_to.gt."${now}"`)
+        .order('effective_from', { ascending: true }),
+    ]);
+
+    if (profileResult.error) mapSupabasePostgrestError(profileResult.error);
+    if (assignmentsResult.error)
+      mapSupabasePostgrestError(assignmentsResult.error);
+    if (!profileResult.data) {
+      throw new AppException(ErrorCode.PROFILE_NOT_INITIALIZED);
+    }
+
+    const profile = profileResult.data;
+    const assignments = assignmentsResult.data ?? [];
+    const locationIds = [
+      ...new Set(
+        assignments
+          .filter((a) => a.context_type === ContextType.LOCATION)
+          .map((a) => a.context_id)
+          .concat(profile.primary_location_id ?? []),
+      ),
+    ];
+
+    const loadLocations = async () => {
+      if (!locationIds.length) return [];
+      const { data, error } = await this.supabaseAdminService.client
+        .from(SupabaseTable.LOCATIONS)
+        .select('id, code, name')
+        .in('id', locationIds);
+      if (error) mapSupabasePostgrestError(error);
+      return data ?? [];
+    };
+    const loadDepartment = async () => {
+      if (!profile.department_id) return null;
+      const { data, error } = await this.supabaseAdminService.client
+        .from(SupabaseTable.DEPARTMENTS)
+        .select('id, code, name')
+        .eq('id', profile.department_id)
+        .maybeSingle();
+      if (error) mapSupabasePostgrestError(error);
+      return data;
+    };
+    const loadManager = async () => {
+      if (!profile.manager_id) return null;
+      const { data, error } = await this.supabaseAdminService.client
+        .from(UserProfileTableName)
+        .select('id, employee_code, display_name')
+        .eq('id', profile.manager_id)
+        .maybeSingle();
+      if (error) mapSupabasePostgrestError(error);
+      return data;
+    };
+
+    const [locations, department, manager] = await Promise.all([
+      loadLocations(),
+      loadDepartment(),
+      loadManager(),
+    ]);
+
+    const locationsById = new Map(
+      locations.map((location) => [location.id, location] as const),
     );
+    const primaryLocation = profile.primary_location_id
+      ? locationsById.get(profile.primary_location_id)
+      : undefined;
 
     return {
       id: data.user.id,
       email: data.user.email ?? null,
-      displayName: req.user.displayName,
-      employeeCode: req.user.employeeCode,
-      preferredLocale: req.user.preferredLocale ?? null,
+      displayName: profile.display_name,
+      employeeCode: profile.employee_code,
+      workEmail: profile.work_email,
+      phone: profile.phone,
+      jobTitle: profile.job_title,
+      employmentType: profile.employment_type,
+      preferredLocale: profile.preferred_locale,
+      primaryLocation: primaryLocation ?? null,
+      department,
+      manager: manager
+        ? {
+            id: manager.id,
+            employeeCode: manager.employee_code,
+            displayName: manager.display_name,
+          }
+        : null,
       isSuperAdmin: isSuperAdmin(req.user),
       platformRoles: assignments
-        .filter((a) => a.context_type === ContextType.PLATFORM)
+        .filter(
+          (a) =>
+            a.context_type === ContextType.PLATFORM && a.effective_from <= now,
+        )
         .map((a) => a.role_code),
       locationRoles: assignments
-        .filter((a) => a.context_type === ContextType.LOCATION)
+        .filter(
+          (a) =>
+            a.context_type === ContextType.LOCATION && a.effective_from <= now,
+        )
         .map((a) => ({ locationId: a.context_id, roleCode: a.role_code })),
+      roleAssignments: assignments.map((assignment) => ({
+        roleCode: assignment.role_code,
+        contextType: assignment.context_type,
+        contextId: assignment.context_id,
+        location:
+          assignment.context_type === ContextType.LOCATION
+            ? (locationsById.get(assignment.context_id) ?? null)
+            : null,
+        effectiveFrom: assignment.effective_from,
+        effectiveTo: assignment.effective_to,
+      })),
       aal: req.user.aal ?? null,
     };
+  }
+
+  /** Lưu lựa chọn hiển thị cá nhân; không phải thay đổi nghiệp vụ nên không audit/tăng version. */
+  async updatePreferredLocale(
+    userId: string,
+    dto: UpdatePreferredLocaleDto,
+  ): Promise<{ preferredLocale: 'vi' | 'en' }> {
+    const { error } = await this.supabaseAdminService.client
+      .from(UserProfileTableName)
+      .update({ preferred_locale: dto.preferredLocale })
+      .eq('id', userId);
+
+    if (error) mapSupabasePostgrestError(error);
+    return { preferredLocale: dto.preferredLocale };
   }
 
   // =========================================================================

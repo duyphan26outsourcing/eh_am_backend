@@ -14,6 +14,42 @@ export type Database = {
   };
   public: {
     Tables: {
+      account_status_command_receipts: {
+        Row: {
+          action: string;
+          actor_id: string;
+          command_key: string;
+          completed_at: string | null;
+          created_at: string;
+          employee_id: string;
+          reason_code_id: string;
+          reason_note: string | null;
+          result_row: Json | null;
+        };
+        Insert: {
+          action: string;
+          actor_id: string;
+          command_key: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id: string;
+          reason_code_id: string;
+          reason_note?: string | null;
+          result_row?: Json | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string;
+          command_key?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id?: string;
+          reason_code_id?: string;
+          reason_note?: string | null;
+          result_row?: Json | null;
+        };
+        Relationships: [];
+      };
       activation_invites: {
         Row: {
           accepted_at: string | null;
@@ -395,6 +431,69 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      employee_profile_command_receipts: {
+        Row: {
+          actor_id: string;
+          command_key: string;
+          completed_at: string | null;
+          created_at: string;
+          employee_id: string;
+          operation: string;
+          payload: Json;
+          result_row: Json | null;
+        };
+        Insert: {
+          actor_id: string;
+          command_key: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id: string;
+          operation: string;
+          payload: Json;
+          result_row?: Json | null;
+        };
+        Update: {
+          actor_id?: string;
+          command_key?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id?: string;
+          operation?: string;
+          payload?: Json;
+          result_row?: Json | null;
+        };
+        Relationships: [];
+      };
+      employee_termination_receipts: {
+        Row: {
+          actor_id: string;
+          command_key: string;
+          completed_at: string | null;
+          created_at: string;
+          employee_id: string;
+          payload: Json;
+          result_row: Json | null;
+        };
+        Insert: {
+          actor_id: string;
+          command_key: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id: string;
+          payload: Json;
+          result_row?: Json | null;
+        };
+        Update: {
+          actor_id?: string;
+          command_key?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          employee_id?: string;
+          payload?: Json;
+          result_row?: Json | null;
+        };
+        Relationships: [];
       };
       location_command_receipts: {
         Row: {
@@ -881,6 +980,8 @@ export type Database = {
       };
       user_profiles: {
         Row: {
+          auth_email_sync_status: string;
+          auth_email_sync_updated_at: string | null;
           created_at: string;
           created_by: string | null;
           department_id: string | null;
@@ -897,10 +998,15 @@ export type Database = {
           profile_version: number;
           start_date: string | null;
           status: string;
+          termination_date: string | null;
+          termination_note: string | null;
+          termination_reason_code_id: string | null;
           updated_at: string;
           work_email: string | null;
         };
         Insert: {
+          auth_email_sync_status?: string;
+          auth_email_sync_updated_at?: string | null;
           created_at?: string;
           created_by?: string | null;
           department_id?: string | null;
@@ -917,10 +1023,15 @@ export type Database = {
           profile_version?: number;
           start_date?: string | null;
           status?: string;
+          termination_date?: string | null;
+          termination_note?: string | null;
+          termination_reason_code_id?: string | null;
           updated_at?: string;
           work_email?: string | null;
         };
         Update: {
+          auth_email_sync_status?: string;
+          auth_email_sync_updated_at?: string | null;
           created_at?: string;
           created_by?: string | null;
           department_id?: string | null;
@@ -937,6 +1048,9 @@ export type Database = {
           profile_version?: number;
           start_date?: string | null;
           status?: string;
+          termination_date?: string | null;
+          termination_note?: string | null;
+          termination_reason_code_id?: string | null;
           updated_at?: string;
           work_email?: string | null;
         };
@@ -969,6 +1083,13 @@ export type Database = {
             referencedRelation: 'locations';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'user_profiles_termination_reason_code_id_fkey';
+            columns: ['termination_reason_code_id'];
+            isOneToOne: false;
+            referencedRelation: 'reason_codes';
+            referencedColumns: ['id'];
+          },
         ];
       };
     };
@@ -976,6 +1097,39 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      change_employee_account_status: {
+        Args: {
+          p_action: string;
+          p_actor_id: string;
+          p_actor_label: string;
+          p_command_key: string;
+          p_employee_id: string;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
+      change_employee_email: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_command_key: string;
+          p_email: string;
+          p_employee_id: string;
+          p_expected_version: number;
+          p_invite_expires_at: string;
+          p_invite_token_hash: string;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       claim_activation_invite: { Args: { p_user_id: string }; Returns: Json };
       complete_account_activation: {
         Args: {
@@ -1169,6 +1323,8 @@ export type Database = {
           p_work_email: string;
         };
         Returns: {
+          auth_email_sync_status: string;
+          auth_email_sync_updated_at: string | null;
           created_at: string;
           created_by: string | null;
           department_id: string | null;
@@ -1185,6 +1341,9 @@ export type Database = {
           profile_version: number;
           start_date: string | null;
           status: string;
+          termination_date: string | null;
+          termination_note: string | null;
+          termination_reason_code_id: string | null;
           updated_at: string;
           work_email: string | null;
         };
@@ -1584,6 +1743,10 @@ export type Database = {
         Args: { p_location_id: string };
         Returns: Json;
       };
+      mark_employee_email_sync: {
+        Args: { p_employee_id: string; p_status: string };
+        Returns: undefined;
+      };
       preview_activation_invite: { Args: { p_user_id: string }; Returns: Json };
       release_activation_invite: {
         Args: { p_invite_id: string; p_user_id: string };
@@ -1603,6 +1766,10 @@ export type Database = {
         };
         Returns: Json;
       };
+      revoke_employee_sessions: {
+        Args: { p_employee_id: string };
+        Returns: number;
+      };
       revoke_role_assignment: {
         Args: {
           p_actor_id: string;
@@ -1612,6 +1779,23 @@ export type Database = {
           p_employee_id: string;
           p_ip: unknown;
           p_reason: string;
+          p_request_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
+      terminate_employee: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_transfers: Json;
+          p_command_key: string;
+          p_employee_id: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_new_manager_id: string;
+          p_reason_code_id: string;
+          p_reason_note: string;
           p_request_id: string;
           p_user_agent: string;
         };
@@ -1756,6 +1940,30 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      update_employee_profile: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_command_key: string;
+          p_department_id: string;
+          p_display_name: string;
+          p_employee_code: string;
+          p_employee_id: string;
+          p_employment_type: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_job_title: string;
+          p_manager_id: string;
+          p_phone: string;
+          p_preferred_locale: string;
+          p_primary_location_id: string;
+          p_reason: string;
+          p_request_id: string;
+          p_start_date: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
       };
       update_location: {
         Args: {

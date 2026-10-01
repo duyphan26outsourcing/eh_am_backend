@@ -56,10 +56,15 @@ export const AuditEvent = {
   // -------------------------------------------------------------------------
   IDENTITY_PROFILE_CREATED: 'identity.profile.created',
   IDENTITY_PROFILE_UPDATED: 'identity.profile.updated',
+  IDENTITY_PROFILE_EMAIL_CHANGED: 'identity.profile.email_changed',
   IAM_ROLE_GRANTED: 'iam.role.granted',
   IAM_ROLE_REVOKED: 'iam.role.revoked',
   IAM_EMPLOYEE_CREATED: 'iam.employee.created',
   IAM_EMPLOYEE_ACTIVATED: 'iam.employee.activated',
+  IAM_ACCOUNT_LOCKED: 'iam.account.locked',
+  IAM_ACCOUNT_UNLOCKED: 'iam.account.unlocked',
+  IAM_EMPLOYEE_TERMINATED: 'iam.employee.terminated',
+  IDENTITY_PROFILE_MANAGER_CHANGED: 'identity.profile.manager_changed',
 
   // -------------------------------------------------------------------------
   // M02 — Danh mục nền

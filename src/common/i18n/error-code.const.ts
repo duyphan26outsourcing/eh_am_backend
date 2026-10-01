@@ -74,6 +74,10 @@ export const ErrorCode = {
   /** ⚠️ Có tham số `{status}` — dùng cho cả `SUSPENDED` và `DEACTIVATED`. */
   ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
   ACCOUNT_STATE_CONFLICT: 'ACCOUNT_STATE_CONFLICT',
+  SELF_ACCOUNT_LOCK_FORBIDDEN: 'SELF_ACCOUNT_LOCK_FORBIDDEN',
+  LAST_SYSTEM_ADMIN_REQUIRED: 'LAST_SYSTEM_ADMIN_REQUIRED',
+  /** Chặn đổi email đăng nhập cho chính mình hoặc cho tài khoản SYSTEM_ADMIN (UC-IAM-08, chống chiếm tài khoản). */
+  EMAIL_CHANGE_TARGET_FORBIDDEN: 'EMAIL_CHANGE_TARGET_FORBIDDEN',
   EMPLOYEE_CODE_TAKEN: 'EMPLOYEE_CODE_TAKEN',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
   INVALID_SUPERIOR: 'INVALID_SUPERIOR',
@@ -343,6 +347,27 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Tài khoản không còn ở trạng thái có thể gửi lại lời mời. Vui lòng làm mới danh sách để kiểm tra trạng thái mới nhất.',
       en: 'This account can no longer receive a replacement invitation. Refresh the list to check its latest status.',
+    },
+  },
+  SELF_ACCOUNT_LOCK_FORBIDDEN: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Bạn không thể tự khóa tài khoản đang dùng. Hãy nhờ một quản trị hệ thống khác thực hiện nếu cần.',
+      en: 'You cannot lock the account you are currently using. Ask another system administrator if needed.',
+    },
+  },
+  LAST_SYSTEM_ADMIN_REQUIRED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Không thể khóa quản trị hệ thống đang hoạt động cuối cùng. Hãy bảo đảm còn một quản trị viên khác trước khi tiếp tục.',
+      en: 'The last active system administrator cannot be locked. Ensure another administrator remains active first.',
+    },
+  },
+  EMAIL_CHANGE_TARGET_FORBIDDEN: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Không thể đổi email đăng nhập cho tài khoản của chính bạn hoặc cho quản trị hệ thống từ màn hình này. Việc này cần quy trình riêng có xác minh.',
+      en: 'You cannot change the login email for your own account or for a system administrator from this screen. That requires a separate, verified process.',
     },
   },
   EMPLOYEE_CODE_TAKEN: {

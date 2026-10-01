@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Patch,
   Query,
   Req,
   UseGuards,
@@ -27,6 +28,10 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { GrantRoleAssignmentDto } from './dto/grant-role-assignment.dto';
 import { ListEmployeesQueryDto } from './dto/list-employees.dto';
 import { RevokeRoleAssignmentDto } from './dto/revoke-role-assignment.dto';
+import { ChangeAccountStatusDto } from './dto/change-account-status.dto';
+import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
+import { ChangeEmployeeEmailDto } from './dto/change-employee-email.dto';
+import { TerminateEmployeeDto } from './dto/terminate-employee.dto';
 import { EmployeesService } from './employees.service';
 
 @Controller({ path: 'employees', version: API_VERSION_1 })
@@ -107,6 +112,84 @@ export class EmployeesController {
     return this.service.revokeRole(
       employeeId,
       assignmentId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Post(':id/account-status')
+  @Throttle({ default: THROTTLE_WRITE })
+  async changeAccountStatus(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Body() dto: ChangeAccountStatusDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.changeAccountStatus(
+      employeeId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Get(':id/profile')
+  @Throttle({ default: THROTTLE_SEARCH })
+  async profile(@Param('id', new ParseUUIDPipe()) employeeId: string) {
+    return this.service.getProfile(employeeId);
+  }
+
+  @Patch(':id/profile')
+  @Throttle({ default: THROTTLE_WRITE })
+  async updateProfile(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Body() dto: UpdateEmployeeProfileDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.updateProfile(
+      employeeId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Post(':id/change-email')
+  @Throttle({ default: THROTTLE_WRITE })
+  async changeEmail(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Body() dto: ChangeEmployeeEmailDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.changeEmployeeEmail(
+      employeeId,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Get(':id/termination-preview')
+  @Throttle({ default: THROTTLE_SEARCH })
+  async terminationPreview(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+  ) {
+    return this.service.getTerminationPreview(employeeId);
+  }
+
+  @Post(':id/terminate')
+  @Throttle({ default: THROTTLE_WRITE })
+  async terminate(
+    @Param('id', new ParseUUIDPipe()) employeeId: string,
+    @Body() dto: TerminateEmployeeDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.terminateEmployee(
+      employeeId,
       dto,
       requireIdempotencyKey(idempotencyKey),
       req,

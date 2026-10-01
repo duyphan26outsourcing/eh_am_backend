@@ -13,6 +13,10 @@ import { type CreateEmployeeDto } from './dto/create-employee.dto';
 import { type GrantRoleAssignmentDto } from './dto/grant-role-assignment.dto';
 import { type ListEmployeesQueryDto } from './dto/list-employees.dto';
 import { type RevokeRoleAssignmentDto } from './dto/revoke-role-assignment.dto';
+import { type ChangeAccountStatusDto } from './dto/change-account-status.dto';
+import { type UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
+import { type ChangeEmployeeEmailDto } from './dto/change-employee-email.dto';
+import { type TerminateEmployeeDto } from './dto/terminate-employee.dto';
 import {
   normalizeEmployeeCode,
   normalizeEmployeeEmail,
@@ -28,6 +32,7 @@ import {
   type ResendEmployeeInviteRow,
   type ResentEmployeeInviteModel,
   type RoleAssignmentModel,
+  type ChangedAccountStatusModel,
   toEmployeeListItemModel,
   toRoleAssignmentModel,
 } from './employee.model';
@@ -93,9 +98,10 @@ export class EmployeesService {
   async getAccess(employeeId: string): Promise<EmployeeAccessModel> {
     const profile = await this.repository.findAccessProfile(employeeId);
     if (!profile) throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
-    const [assignments, locations] = await Promise.all([
+    const [assignments, locations, accountStatusReasons] = await Promise.all([
       this.repository.findRoleAssignments(employeeId),
       this.repository.listActiveLocations(),
+      this.repository.listAccountStatusReasons(),
     ]);
     return {
       employee: {
@@ -116,6 +122,13 @@ export class EmployeesService {
           contextType: role.contextType,
         })),
         locations,
+        accountStatusReasons: accountStatusReasons.map((reason) => ({
+          id: reason.id,
+          code: reason.code,
+          label: reason.label,
+          group: reason.reason_group as 'ACCOUNT_LOCK' | 'ACCOUNT_UNLOCK',
+          isFreetext: reason.is_freetext,
+        })),
       },
     };
   }
@@ -206,6 +219,283 @@ export class EmployeesService {
       location_code: null,
       location_name: null,
     });
+  }
+
+  async changeAccountStatus(
+    employeeId: string,
+    dto: ChangeAccountStatusDto,
+    commandKey: string,
+    req: AuthRequest,
+  ): Promise<ChangedAccountStatusModel> {
+    const audit = auditContextOf(req);
+    const row = await this.repository.changeAccountStatusViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_action: dto.action,
+      p_reason_code_id: dto.reasonCodeId,
+      p_reason_note: dto.reasonNote ?? '',
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+
+    let sessionRevocation: ChangedAccountStatusModel['sessionRevocation'] =
+      'NOT_REQUIRED';
+    // Trạng thái + audit đã commit. Thu hồi phiên là side effect hậu transaction: lỗi không được
+    // hoàn tác khóa, vì JwtAuthGuard vẫn chặn mọi request kế tiếp theo user_profiles.status.
+    if (dto.action === 'LOCK' && !row.is_replay) {
+      try {
+        await this.repository.revokeEmployeeSessions(employeeId);
+        sessionRevocation = 'SUCCEEDED';
+      } catch (error) {
+        sessionRevocation = 'FAILED';
+        this.logger.error(
+          `Không thu hồi hết phiên sau khi khóa tài khoản: employee=${employeeId}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+    return { id: row.id, status: row.status, sessionRevocation };
+  }
+
+  async getProfile(employeeId: string) {
+    const [profile, options, emailReasons, managerRows] = await Promise.all([
+      this.repository.findProfile(employeeId),
+      this.repository.createOptions(),
+      this.repository.listEmailChangeReasons(),
+      this.repository.listActiveManagerCandidates(),
+    ]);
+    if (!profile) throw new AppException(ErrorCode.REFERENCE_NOT_FOUND);
+    const excludedManagers = new Set<string>([employeeId]);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const manager of managerRows) {
+        if (
+          manager.manager_id &&
+          excludedManagers.has(manager.manager_id) &&
+          !excludedManagers.has(manager.id)
+        ) {
+          excludedManagers.add(manager.id);
+          expanded = true;
+        }
+      }
+    }
+    return {
+      profile: {
+        id: profile.id,
+        displayName: profile.display_name,
+        workEmail: profile.work_email,
+        employeeCode: profile.employee_code,
+        phone: profile.phone,
+        preferredLocale: profile.preferred_locale,
+        primaryLocationId: profile.primary_location_id,
+        departmentId: profile.department_id,
+        jobTitle: profile.job_title,
+        employmentType: profile.employment_type,
+        startDate: profile.start_date,
+        managerId: profile.manager_id,
+        status: profile.status,
+        profileVersion: profile.profile_version,
+        authEmailSyncStatus: profile.auth_email_sync_status,
+        authEmailSyncUpdatedAt: profile.auth_email_sync_updated_at,
+      },
+      options: {
+        locations: options.locations,
+        departments: options.departments,
+        managers: managerRows
+          .filter((manager) => !excludedManagers.has(manager.id))
+          .map((manager) => ({
+            id: manager.id,
+            displayName: manager.display_name,
+            employeeCode: manager.employee_code,
+          })),
+        emailReasons: emailReasons.map((reason) => ({
+          id: reason.id,
+          code: reason.code,
+          label: reason.label,
+          isFreetext: reason.is_freetext,
+        })),
+      },
+    };
+  }
+
+  async updateProfile(
+    employeeId: string,
+    dto: UpdateEmployeeProfileDto,
+    commandKey: string,
+    req: AuthRequest,
+  ) {
+    const audit = auditContextOf(req);
+    const row = await this.repository.updateProfileViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_expected_version: dto.profileVersion,
+      p_display_name: dto.displayName,
+      p_employee_code: dto.employeeCode
+        ? normalizeEmployeeCode(dto.employeeCode)
+        : null,
+      p_phone: dto.phone ? normalizeEmployeePhone(dto.phone) : null,
+      p_preferred_locale: dto.preferredLocale,
+      p_primary_location_id: dto.primaryLocationId,
+      p_department_id: dto.departmentId,
+      p_job_title: dto.jobTitle,
+      p_employment_type: dto.employmentType,
+      p_start_date: dto.startDate,
+      p_manager_id: dto.managerId,
+      p_reason: dto.reason ?? '',
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+    return {
+      id: row.id,
+      profileVersion: row.profile_version,
+      changed: row.changed,
+    };
+  }
+
+  async changeEmployeeEmail(
+    employeeId: string,
+    dto: ChangeEmployeeEmailDto,
+    commandKey: string,
+    req: AuthRequest,
+  ) {
+    const audit = auditContextOf(req);
+    const row = await this.repository.changeEmailViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_expected_version: dto.profileVersion,
+      p_email: normalizeEmployeeEmail(dto.email),
+      p_reason_code_id: dto.reasonCodeId,
+      p_reason_note: dto.reasonNote ?? '',
+      p_invite_token_hash: createHash('sha256')
+        .update(randomBytes(32))
+        .digest('hex'),
+      p_invite_expires_at: new Date(
+        Date.now() + this.invitationTtlMs(),
+      ).toISOString(),
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const authResult =
+        await this.supabaseAdmin.client.auth.admin.updateUserById(employeeId, {
+          email: row.work_email,
+          email_confirm: true,
+        });
+      let syncError = authResult.error;
+      if (!syncError && row.invitation_required) {
+        const invite =
+          await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(
+            row.work_email,
+            {
+              data: { display_name: row.work_email },
+              redirectTo: `${this.resolveAppUrl()}/activate-account`,
+            },
+          );
+        syncError = invite.error;
+      }
+      if (!syncError) {
+        await this.repository.markEmailSync(employeeId, 'IN_SYNC');
+        return {
+          id: row.id,
+          workEmail: row.work_email,
+          profileVersion: row.profile_version,
+          authEmailSyncStatus: 'IN_SYNC' as const,
+        };
+      }
+    }
+    await this.repository.markEmailSync(employeeId, 'FAILED');
+    this.logger.error(
+      `Không đồng bộ được email đăng nhập: employee=${employeeId}`,
+    );
+    throw new AppException(ErrorCode.REQUEST_TIMEOUT);
+  }
+
+  async getTerminationPreview(employeeId: string) {
+    const [profileDetail, directReports, assignments, reasons] =
+      await Promise.all([
+        this.getProfile(employeeId),
+        this.repository.listDirectReports(employeeId),
+        this.repository.findRoleAssignments(employeeId),
+        this.repository.listTerminationReasons(),
+      ]);
+    return {
+      employee: profileDetail.profile,
+      directReports: directReports.map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        employeeCode: row.employee_code,
+      })),
+      openRoles: assignments
+        .map((row) => toRoleAssignmentModel(row))
+        .filter((row) => row.status === 'ACTIVE' || row.status === 'UPCOMING'),
+      assets: [],
+      options: {
+        managers: profileDetail.options.managers,
+        reasons: reasons.map((reason) => ({
+          id: reason.id,
+          code: reason.code,
+          label: reason.label,
+          isFreetext: reason.is_freetext,
+        })),
+      },
+    };
+  }
+
+  async terminateEmployee(
+    employeeId: string,
+    dto: TerminateEmployeeDto,
+    commandKey: string,
+    req: AuthRequest,
+  ) {
+    const audit = auditContextOf(req);
+    const row = await this.repository.terminateViaRpc({
+      p_command_key: commandKey,
+      p_employee_id: employeeId,
+      p_expected_version: dto.profileVersion,
+      p_new_manager_id: dto.newManagerId ?? null,
+      p_reason_code_id: dto.reasonCodeId,
+      p_reason_note: dto.reasonNote ?? '',
+      p_asset_transfers: dto.assetTransfers,
+      p_actor_id: req.user.sub,
+      p_actor_label: audit.actorLabel ?? '',
+      p_request_id: audit.requestId ?? '',
+      p_ip: audit.ipAddress,
+      p_user_agent: audit.userAgent ?? '',
+    });
+    let sessionRevocation: 'SUCCEEDED' | 'FAILED' | 'NOT_REQUIRED' =
+      'NOT_REQUIRED';
+    if (!row.is_replay) {
+      try {
+        await this.repository.revokeEmployeeSessions(employeeId);
+        sessionRevocation = 'SUCCEEDED';
+      } catch (error) {
+        sessionRevocation = 'FAILED';
+        this.logger.error(
+          `Không thu hồi hết phiên sau khi cho nghỉ việc: employee=${employeeId}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+    return {
+      id: row.id,
+      status: row.status,
+      profileVersion: row.profile_version,
+      directReportsReassigned: row.direct_reports_reassigned,
+      rolesClosed: row.roles_closed,
+      assetsTransferred: row.assets_transferred,
+      sessionRevocation,
+    };
   }
 
   async create(

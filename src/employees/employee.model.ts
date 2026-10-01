@@ -178,7 +178,20 @@ export interface EmployeeAccessModel {
       contextType: string;
     }>;
     locations: Array<{ id: string; code: string; name: string }>;
+    accountStatusReasons: Array<{
+      id: string;
+      code: string;
+      label: string;
+      group: 'ACCOUNT_LOCK' | 'ACCOUNT_UNLOCK';
+      isFreetext: boolean;
+    }>;
   };
+}
+
+export interface ChangedAccountStatusModel {
+  id: string;
+  status: 'ACTIVE' | 'SUSPENDED';
+  sessionRevocation: 'SUCCEEDED' | 'FAILED' | 'NOT_REQUIRED';
 }
 
 export function toRoleAssignmentModel(
