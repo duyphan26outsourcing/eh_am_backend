@@ -16,6 +16,7 @@ import { AuditModule } from './audit/audit.module';
 import { MasterDataModule } from './master-data/master-data.module';
 import { EmployeesModule } from './employees/employees.module';
 import { OrgChartModule } from './org-chart/org-chart.module';
+import { AssetsModule } from './assets/assets.module';
 
 /**
  * ============================================================================
@@ -75,6 +76,7 @@ import { OrgChartModule } from './org-chart/org-chart.module';
     MasterDataModule,
     EmployeesModule,
     OrgChartModule,
+    AssetsModule,
   ],
   controllers: [AppController],
   providers: [

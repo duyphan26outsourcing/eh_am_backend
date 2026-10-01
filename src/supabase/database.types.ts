@@ -101,6 +101,36 @@ export type Database = {
           },
         ];
       };
+      asset_command_receipts: {
+        Row: {
+          actor_id: string;
+          command_key: string;
+          completed_at: string | null;
+          created_at: string;
+          operation: string;
+          payload: Json;
+          result_row: Json | null;
+        };
+        Insert: {
+          actor_id: string;
+          command_key: string;
+          completed_at?: string | null;
+          created_at?: string;
+          operation: string;
+          payload: Json;
+          result_row?: Json | null;
+        };
+        Update: {
+          actor_id?: string;
+          command_key?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          operation?: string;
+          payload?: Json;
+          result_row?: Json | null;
+        };
+        Relationships: [];
+      };
       asset_types: {
         Row: {
           asset_kind: string | null;
@@ -170,6 +200,108 @@ export type Database = {
             columns: ['updated_by'];
             isOneToOne: false;
             referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assets: {
+        Row: {
+          asset_code: string;
+          asset_type_id: string;
+          cost_center_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          invoice_no: string | null;
+          lifecycle_status: string;
+          name: string;
+          note: string | null;
+          physical_condition: string;
+          primary_location_id: string;
+          profile_version: number;
+          purchase_date: string | null;
+          qr_token: string;
+          responsible_user_id: string;
+          serial: string | null;
+          supplier_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          asset_code: string;
+          asset_type_id: string;
+          cost_center_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          invoice_no?: string | null;
+          lifecycle_status: string;
+          name: string;
+          note?: string | null;
+          physical_condition?: string;
+          primary_location_id: string;
+          profile_version?: number;
+          purchase_date?: string | null;
+          qr_token: string;
+          responsible_user_id: string;
+          serial?: string | null;
+          supplier_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          asset_code?: string;
+          asset_type_id?: string;
+          cost_center_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          invoice_no?: string | null;
+          lifecycle_status?: string;
+          name?: string;
+          note?: string | null;
+          physical_condition?: string;
+          primary_location_id?: string;
+          profile_version?: number;
+          purchase_date?: string | null;
+          qr_token?: string;
+          responsible_user_id?: string;
+          serial?: string | null;
+          supplier_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assets_asset_type_id_fkey';
+            columns: ['asset_type_id'];
+            isOneToOne: false;
+            referencedRelation: 'asset_types';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assets_cost_center_id_fkey';
+            columns: ['cost_center_id'];
+            isOneToOne: false;
+            referencedRelation: 'cost_centers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assets_primary_location_id_fkey';
+            columns: ['primary_location_id'];
+            isOneToOne: false;
+            referencedRelation: 'locations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assets_responsible_user_id_fkey';
+            columns: ['responsible_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assets_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
             referencedColumns: ['id'];
           },
         ];
@@ -1153,6 +1285,27 @@ export type Database = {
         };
         Returns: undefined;
       };
+      create_asset: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_type_id: string;
+          p_command_key: string;
+          p_invoice_no: string;
+          p_ip: unknown;
+          p_lifecycle_status: string;
+          p_name: string;
+          p_note: string;
+          p_primary_location_id: string;
+          p_purchase_date: string;
+          p_request_id: string;
+          p_responsible_user_id: string;
+          p_serial: string;
+          p_supplier_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       create_asset_type: {
         Args: {
           p_actor_id: string;
@@ -1706,6 +1859,39 @@ export type Database = {
           p_user_agent: string;
         };
         Returns: Json;
+      };
+      list_assets: {
+        Args: {
+          p_asset_type_id: string;
+          p_limit: number;
+          p_location_id: string;
+          p_location_ids: string[];
+          p_offset: number;
+          p_physical_condition: string;
+          p_search: string;
+          p_status: string;
+        };
+        Returns: {
+          asset_code: string;
+          asset_kind: string;
+          asset_type_code: string;
+          asset_type_id: string;
+          asset_type_name: string;
+          cost_center_id: string;
+          created_at: string;
+          id: string;
+          lifecycle_status: string;
+          location_code: string;
+          location_name: string;
+          name: string;
+          physical_condition: string;
+          primary_location_id: string;
+          responsible_employee_code: string;
+          responsible_name: string;
+          responsible_user_id: string;
+          serial: string;
+          total_count: number;
+        }[];
       };
       list_employees: {
         Args: {

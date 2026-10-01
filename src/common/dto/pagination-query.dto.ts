@@ -34,6 +34,9 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt({ message: 'page phải là số nguyên.' })
   @Min(1, { message: 'page nhỏ nhất là 1.' })
+  // ⚠️ Chặn trên: `(page-1)*pageSize` là offset int4 trong RPC; `page` khổng lồ làm tràn int4
+  // (Postgres 22003 → 500) thay vì một trang rỗng. Không có use case nào cần quá 100k trang.
+  @Max(100_000, { message: 'page lớn nhất là 100000.' })
   page: number = 1;
 
   @IsOptional()

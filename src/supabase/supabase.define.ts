@@ -44,6 +44,9 @@ export const SupabaseTable = {
   REPAIR_VENDORS: 'repair_vendors',
   ACTIVATION_INVITES: 'activation_invites',
   EMPLOYEE_COMMAND_RECEIPTS: 'employee_command_receipts',
+  // Tài sản M03
+  ASSETS: 'assets',
+  ASSET_COMMAND_RECEIPTS: 'asset_command_receipts',
 } as const satisfies Record<string, PublicTableName>;
 
 // ---------------------------------------------------------------------------

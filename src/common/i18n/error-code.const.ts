@@ -78,6 +78,14 @@ export const ErrorCode = {
   LAST_SYSTEM_ADMIN_REQUIRED: 'LAST_SYSTEM_ADMIN_REQUIRED',
   /** Chặn đổi email đăng nhập cho chính mình hoặc cho tài khoản SYSTEM_ADMIN (UC-IAM-08, chống chiếm tài khoản). */
   EMAIL_CHANGE_TARGET_FORBIDDEN: 'EMAIL_CHANGE_TARGET_FORBIDDEN',
+
+  // -------------------------------------------------------------------------
+  // Tài sản (M03)
+  // -------------------------------------------------------------------------
+  /** Loại tài sản bắt buộc serial nhưng chưa nhập (UC-AST-01.EX.1, BR-AST-02). */
+  ASSET_SERIAL_REQUIRED: 'ASSET_SERIAL_REQUIRED',
+  /** Người chịu trách nhiệm không có vai trò trên location của tài sản (UC-AST-01.EX.3, BR-AST-09). */
+  RESPONSIBLE_NOT_ON_LOCATION: 'RESPONSIBLE_NOT_ON_LOCATION',
   EMPLOYEE_CODE_TAKEN: 'EMPLOYEE_CODE_TAKEN',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
   INVALID_SUPERIOR: 'INVALID_SUPERIOR',
@@ -368,6 +376,20 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Không thể đổi email đăng nhập cho tài khoản của chính bạn hoặc cho quản trị hệ thống từ màn hình này. Việc này cần quy trình riêng có xác minh.',
       en: 'You cannot change the login email for your own account or for a system administrator from this screen. That requires a separate, verified process.',
+    },
+  },
+  ASSET_SERIAL_REQUIRED: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Loại tài sản này bắt buộc nhập số serial.',
+      en: 'This asset type requires a serial number.',
+    },
+  },
+  RESPONSIBLE_NOT_ON_LOCATION: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Người chịu trách nhiệm không có vai trò tại địa điểm đã chọn. Hãy chọn người có vai trò tại địa điểm đó.',
+      en: 'The selected person has no role at the chosen location. Pick someone with a role there.',
     },
   },
   EMPLOYEE_CODE_TAKEN: {
