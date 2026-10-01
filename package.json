@@ -13,6 +13,8 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "gen:types": "node tools/gen-supabase-types.mjs",
+    "smoke:m03": "node tools/smoke-m03-assets.mjs",
+    "seed:m03": "node tools/seed-m03-assets.mjs",
     "kiem:types:dev": "node tools/gen-supabase-types.mjs --check",
     "kiem:types:prod": "node tools/gen-supabase-types.mjs --check --project=THAY_BANG_PROJECT_REF_PRODUCTION",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

@@ -84,6 +84,14 @@ export const ErrorCode = {
   // -------------------------------------------------------------------------
   /** Loại tài sản bắt buộc serial nhưng chưa nhập (UC-AST-01.EX.1, BR-AST-02). */
   ASSET_SERIAL_REQUIRED: 'ASSET_SERIAL_REQUIRED',
+  ASSET_READ_ONLY: 'ASSET_READ_ONLY',
+  ASSET_STATUS_LOCKED: 'ASSET_STATUS_LOCKED',
+  CANCELLATION_PENDING_EXISTS: 'CANCELLATION_PENDING_EXISTS',
+  NO_APPROVER_AVAILABLE: 'NO_APPROVER_AVAILABLE',
+  CANCELLATION_ALREADY_DECIDED: 'CANCELLATION_ALREADY_DECIDED',
+  SELF_APPROVAL_FORBIDDEN: 'SELF_APPROVAL_FORBIDDEN',
+  ASSET_EXTERNAL_RESPONSIBILITY_LOCKED: 'ASSET_EXTERNAL_RESPONSIBILITY_LOCKED',
+  NO_CHANGES: 'NO_CHANGES',
   /** Người chịu trách nhiệm không có vai trò trên location của tài sản (UC-AST-01.EX.3, BR-AST-09). */
   RESPONSIBLE_NOT_ON_LOCATION: 'RESPONSIBLE_NOT_ON_LOCATION',
   EMPLOYEE_CODE_TAKEN: 'EMPLOYEE_CODE_TAKEN',
@@ -383,6 +391,62 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Loại tài sản này bắt buộc nhập số serial.',
       en: 'This asset type requires a serial number.',
+    },
+  },
+  ASSET_READ_ONLY: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Hồ sơ tài sản đã kết thúc nên chỉ có thể xem, không thể chỉnh sửa.',
+      en: 'This asset record is closed and can only be viewed.',
+    },
+  },
+  ASSET_EXTERNAL_RESPONSIBILITY_LOCKED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Tài sản đang ở đơn vị bên ngoài nên chưa thể đổi người chịu trách nhiệm tại đây.',
+      en: 'The asset is at an external location, so its responsible person cannot be changed here.',
+    },
+  },
+  ASSET_STATUS_LOCKED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Trạng thái hiện tại của tài sản không cho đổi tay giữa Lưu kho và Đang sử dụng.',
+      en: 'The asset is in a state that cannot be toggled between in-storage and in-use.',
+    },
+  },
+  CANCELLATION_PENDING_EXISTS: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Hồ sơ này đã có một đề nghị huỷ đang chờ duyệt.',
+      en: 'This asset already has a cancellation request awaiting approval.',
+    },
+  },
+  NO_APPROVER_AVAILABLE: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Chưa có Quản lý tài sản nào khác đang hoạt động để duyệt chéo. Hãy liên hệ Quản trị hệ thống.',
+      en: 'No other active asset manager is available to approve. Contact a system administrator.',
+    },
+  },
+  CANCELLATION_ALREADY_DECIDED: {
+    status: HttpStatus.CONFLICT,
+    messages: {
+      vi: 'Đề nghị huỷ này đã được xử lý.',
+      en: 'This cancellation request has already been decided.',
+    },
+  },
+  SELF_APPROVAL_FORBIDDEN: {
+    status: HttpStatus.FORBIDDEN,
+    messages: {
+      vi: 'Cần một Quản lý tài sản khác người đề nghị duyệt đề nghị này.',
+      en: 'A different asset manager must approve this request.',
+    },
+  },
+  NO_CHANGES: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Chưa có thông tin nào thay đổi. Hãy điều chỉnh ít nhất một trường trước khi lưu.',
+      en: 'Nothing has changed. Update at least one field before saving.',
     },
   },
   RESPONSIBLE_NOT_ON_LOCATION: {

@@ -33,6 +33,11 @@ Mọi thay đổi schema của Every Half AM đi qua thư mục này. Chạy tay
 | 12     | `migrations/12_lock_unlock_account.sql`            | Khoá/mở khoá tài khoản, thu hồi phiên và audit nguyên tử (UC-IAM-12)                                                                 | ✅ Đã chạy                              |
 | 13     | `migrations/13_update_employee_profile.sql`        | Cập nhật hồ sơ, đổi email và theo dõi trạng thái đồng bộ Auth (UC-IAM-08)                                                            | ✅ Đã chạy · `gen:types` đã chạy        |
 | 14     | `migrations/14_terminate_employee.sql`             | Cho nhân viên nghỉ việc, đóng vai trò và bàn giao cấp dưới nguyên tử (UC-IAM-13)                                                     | ✅ Đã chạy · `gen:types` đã chạy        |
+| 15     | `migrations/15_assets.sql`                         | Hồ sơ tài sản, mã tài sản/QR và RPC lập hồ sơ nguyên tử (UC-AST-01)                                                                 | ✅ Đã chạy                              |
+| 16     | `migrations/16_list_assets.sql`                    | RPC tra cứu tài sản có tìm kiếm, bộ lọc và phân trang (UC-AST-07)                                                                   | ✅ Đã chạy                              |
+| 17     | `migrations/17_update_asset_description.sql`       | RPC sửa thông tin mô tả tài sản, khóa lạc quan, chống gửi trùng và audit nguyên tử (UC-AST-03)                                      | ✅ Đã chạy                              |
+| 18     | `migrations/18_change_asset_responsible.sql`       | RPC đổi người chịu trách nhiệm theo scope/location, khóa lạc quan và audit nguyên tử (UC-AST-05)                                    | ✅ Đã chạy                              |
+| 19     | `migrations/19_terminate_employee_asset_handover.sql` | Bàn giao toàn bộ tài sản nội bộ ngay trong giao dịch cho nghỉ việc (QĐ-11, IAM-13/AST-05)                                         | ⏳ Chờ chạy                             |
 | —      | `admin-set.sql`                                  | Bootstrap tài khoản quản trị đầu tiên của một môi trường                                                                             | Chạy **sau** migration 01               |
 
 ## Quy trình cho một môi trường mới

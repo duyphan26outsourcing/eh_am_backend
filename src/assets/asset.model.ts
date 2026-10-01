@@ -56,6 +56,233 @@ export function toCreatedAssetModel(row: CreatedAssetRow): CreatedAssetModel {
   };
 }
 
+export interface UpdatedAssetDescriptionRow {
+  id: string;
+  asset_code: string;
+  name: string;
+  asset_type_id: string;
+  serial: string | null;
+  note: string | null;
+  profile_version: number;
+  updated_at: string;
+  is_replay?: boolean;
+}
+
+export interface AssetResponsibilityContextRow {
+  id: string;
+  asset_code: string;
+  primary_location_id: string;
+  location_type: string;
+  responsible_user_id: string;
+  lifecycle_status: string;
+  profile_version: number;
+}
+
+export interface ChangedAssetResponsibleRow {
+  id: string;
+  asset_code: string;
+  responsible_user_id: string;
+  profile_version: number;
+  updated_at: string;
+  is_replay?: boolean;
+}
+
+export interface ChangedAssetResponsibleModel {
+  id: string;
+  assetCode: string;
+  responsibleUserId: string;
+  profileVersion: number;
+  updatedAt: string;
+}
+
+export function toChangedAssetResponsibleModel(
+  row: ChangedAssetResponsibleRow,
+): ChangedAssetResponsibleModel {
+  return {
+    id: row.id,
+    assetCode: row.asset_code,
+    responsibleUserId: row.responsible_user_id,
+    profileVersion: row.profile_version,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ===== UC-AST-09/10: huỷ hồ sơ tạo sai =====
+
+/** jsonb RPC `request_asset_cancellation` trả về. */
+export interface RequestedCancellationRow {
+  id: string;
+  asset_id: string;
+  status: string;
+  requested_at: string;
+  version: number;
+  is_replay?: boolean;
+}
+
+export interface RequestedCancellationModel {
+  id: string;
+  assetId: string;
+  status: string;
+  requestedAt: string;
+  version: number;
+}
+
+export function toRequestedCancellationModel(
+  row: RequestedCancellationRow,
+): RequestedCancellationModel {
+  return {
+    id: row.id,
+    assetId: row.asset_id,
+    status: row.status,
+    requestedAt: row.requested_at,
+    version: row.version,
+  };
+}
+
+/** jsonb RPC `decide_asset_cancellation` trả về. */
+export interface DecidedCancellationRow {
+  id: string;
+  asset_id: string;
+  status: string;
+  decision: string;
+  version: number;
+  is_replay?: boolean;
+}
+
+export interface DecidedCancellationModel {
+  id: string;
+  assetId: string;
+  status: string;
+  decision: string;
+  version: number;
+}
+
+export function toDecidedCancellationModel(
+  row: DecidedCancellationRow,
+): DecidedCancellationModel {
+  return {
+    id: row.id,
+    assetId: row.asset_id,
+    status: row.status,
+    decision: row.decision,
+    version: row.version,
+  };
+}
+
+/** Dòng bảng `asset_cancellation_requests` cho hàng đợi duyệt. */
+export interface CancellationRequestRow {
+  id: string;
+  asset_id: string;
+  status: string;
+  request_reason_code_id: string;
+  request_reason_note: string | null;
+  requested_by: string;
+  requested_at: string;
+  version: number;
+}
+
+export interface CancellationQueueContext {
+  assetCode: string | null;
+  assetName: string | null;
+  locationName: string | null;
+  requestedByName: string | null;
+  reasonLabel: string | null;
+}
+
+export interface CancellationQueueItemModel {
+  id: string;
+  assetId: string;
+  assetCode: string | null;
+  assetName: string | null;
+  locationName: string | null;
+  status: string;
+  requestedBy: string;
+  requestedByName: string | null;
+  requestedAt: string;
+  reason: string | null;
+  version: number;
+}
+
+// ⚠️ Ghép lý do label + ghi chú để người duyệt đọc nhanh; không phơi reason_code_id/UUID nội bộ.
+export function toCancellationQueueItemModel(
+  row: CancellationRequestRow,
+  context: CancellationQueueContext,
+): CancellationQueueItemModel {
+  const reason =
+    context.reasonLabel && row.request_reason_note
+      ? `${context.reasonLabel}: ${row.request_reason_note}`
+      : (context.reasonLabel ?? row.request_reason_note);
+  return {
+    id: row.id,
+    assetId: row.asset_id,
+    assetCode: context.assetCode,
+    assetName: context.assetName,
+    locationName: context.locationName,
+    status: row.status,
+    requestedBy: row.requested_by,
+    requestedByName: context.requestedByName,
+    requestedAt: row.requested_at,
+    reason,
+    version: row.version,
+  };
+}
+
+/** Dòng jsonb RPC `set_asset_lifecycle_status` trả về (UC-AST-11). */
+export interface ChangedAssetLifecycleRow {
+  id: string;
+  asset_code: string;
+  lifecycle_status: string;
+  profile_version: number;
+  updated_at: string;
+  is_replay?: boolean;
+}
+
+export interface ChangedAssetLifecycleModel {
+  id: string;
+  assetCode: string;
+  lifecycleStatus: string;
+  profileVersion: number;
+  updatedAt: string;
+}
+
+export function toChangedAssetLifecycleModel(
+  row: ChangedAssetLifecycleRow,
+): ChangedAssetLifecycleModel {
+  return {
+    id: row.id,
+    assetCode: row.asset_code,
+    lifecycleStatus: row.lifecycle_status,
+    profileVersion: row.profile_version,
+    updatedAt: row.updated_at,
+  };
+}
+
+export interface UpdatedAssetDescriptionModel {
+  id: string;
+  assetCode: string;
+  name: string;
+  assetTypeId: string;
+  serial: string | null;
+  note: string | null;
+  profileVersion: number;
+  updatedAt: string;
+}
+
+export function toUpdatedAssetDescriptionModel(
+  row: UpdatedAssetDescriptionRow,
+): UpdatedAssetDescriptionModel {
+  return {
+    id: row.id,
+    assetCode: row.asset_code,
+    name: row.name,
+    assetTypeId: row.asset_type_id,
+    serial: row.serial,
+    note: row.note,
+    profileVersion: row.profile_version,
+    updatedAt: row.updated_at,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // UC-AST-07: Tra cứu danh sách tài sản
 // ---------------------------------------------------------------------------
@@ -155,4 +382,224 @@ export interface AssetCreateOptions {
     displayName: string;
     employeeCode: string | null;
   }>;
+  profileEditReasons: Array<{
+    id: string;
+    code: string;
+    label: string;
+    isFreetext: boolean;
+  }>;
+}
+
+// ---------------------------------------------------------------------------
+// UC-AST-08: Xem hồ sơ chi tiết tài sản
+// ---------------------------------------------------------------------------
+
+export interface AssetDetailRow {
+  id: string;
+  asset_code: string;
+  name: string;
+  asset_type_id: string;
+  serial: string | null;
+  note: string | null;
+  purchase_date: string | null;
+  supplier_id: string | null;
+  invoice_no: string | null;
+  primary_location_id: string;
+  cost_center_id: string;
+  responsible_user_id: string;
+  lifecycle_status: string;
+  physical_condition: string;
+  profile_version: number;
+  created_at: string;
+  updated_at: string;
+  asset_type: {
+    id: string;
+    code: string;
+    name: string;
+    asset_kind: string | null;
+  } | null;
+  location: { id: string; code: string; name: string; type: string } | null;
+  cost_center: { id: string; code: string; name: string } | null;
+  responsible: {
+    id: string;
+    display_name: string;
+    employee_code: string | null;
+  } | null;
+  supplier: { id: string; name: string } | null;
+}
+
+export interface AssetTimelineRow {
+  id: number;
+  event_code: string;
+  actor_label: string | null;
+  created_at: string;
+  reason: string | null;
+  changes: unknown;
+}
+
+export interface AssetDetailModel {
+  id: string;
+  assetCode: string;
+  name: string;
+  serial: string | null;
+  note: string | null;
+  lifecycleStatus: string;
+  physicalCondition: string;
+  readOnly: boolean;
+  assetType: {
+    id: string;
+    code: string;
+    name: string;
+    kind: string | null;
+  } | null;
+  purchaseDate: string | null;
+  supplier: { id: string; name: string } | null;
+  location: { id: string; code: string; name: string; type: string } | null;
+  costCenter: { id: string; code: string; name: string } | null;
+  responsible: {
+    id: string;
+    displayName: string;
+    employeeCode: string | null;
+  } | null;
+  financial: { invoiceNo: string | null } | null;
+  documents: [];
+  timeline: Array<{
+    id: number;
+    eventCode: string;
+    actor: { label: string | null };
+    occurredAt: string;
+    reason: string | null;
+    changes: Record<string, unknown>;
+  }>;
+  profileVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const TERMINAL_ASSET_STATUSES = new Set(['DISPOSED', 'CANCELLED']);
+const MONETARY_CHANGE_KEYS = new Set([
+  'original_cost',
+  'originalCost',
+  'residual_value',
+  'residualValue',
+  'net_book_value',
+  'netBookValue',
+  'repair_cost',
+  'repairCost',
+  'disposal_proceeds',
+  'disposalProceeds',
+]);
+
+function asChangeRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+function maskMonetaryChanges(value: unknown): Record<string, unknown> {
+  const source = asChangeRecord(value);
+  return Object.fromEntries(
+    Object.entries(source)
+      .filter(([key]) => !MONETARY_CHANGE_KEYS.has(key))
+      .map(([key, child]) => [
+        key,
+        child && typeof child === 'object' && !Array.isArray(child)
+          ? maskMonetaryChanges(child)
+          : child,
+      ]),
+  );
+}
+
+const REFERENCE_CHANGE_KEYS = new Set([
+  'asset_type_id',
+  'primary_location_id',
+  'cost_center_id',
+  'responsible_user_id',
+  'supplier_id',
+]);
+
+// ⚠️ Audit `changes` lưu khóa ngoại dạng UUID. Resolver (dựng ở service, gom tên từ DB) đổi UUID sang
+// tên hiển thị để timeline UC-AST-08 không phơi UUID trần. Enum (lifecycle_status, physical_condition)
+// GIỮ NGUYÊN code — frontend dịch i18n (vi/en) theo đúng cơ chế nhãn trạng thái.
+function resolveReferenceChanges(
+  changes: Record<string, unknown>,
+  refNames: Record<string, string>,
+): Record<string, unknown> {
+  const resolve = (value: unknown): unknown =>
+    typeof value === 'string' && refNames[value] !== undefined
+      ? refNames[value]
+      : value;
+  return Object.fromEntries(
+    Object.entries(changes).map(([key, child]) => {
+      if (!REFERENCE_CHANGE_KEYS.has(key)) return [key, child];
+      if (child && typeof child === 'object' && !Array.isArray(child)) {
+        const record = child as Record<string, unknown>;
+        return [
+          key,
+          {
+            ...record,
+            before: resolve(record.before),
+            after: resolve(record.after),
+          },
+        ];
+      }
+      return [key, resolve(child)];
+    }),
+  );
+}
+
+export function toAssetDetailModel(
+  row: AssetDetailRow,
+  timeline: readonly AssetTimelineRow[],
+  canViewFinancial: boolean,
+  refNames: Record<string, string> = {},
+): AssetDetailModel {
+  return {
+    id: row.id,
+    assetCode: row.asset_code,
+    name: row.name,
+    serial: row.serial,
+    note: row.note,
+    lifecycleStatus: row.lifecycle_status,
+    physicalCondition: row.physical_condition,
+    readOnly: TERMINAL_ASSET_STATUSES.has(row.lifecycle_status),
+    assetType: row.asset_type
+      ? {
+          id: row.asset_type.id,
+          code: row.asset_type.code,
+          name: row.asset_type.name,
+          kind: row.asset_type.asset_kind,
+        }
+      : null,
+    purchaseDate: row.purchase_date,
+    supplier: row.supplier
+      ? { id: row.supplier.id, name: row.supplier.name }
+      : null,
+    location: row.location,
+    costCenter: row.cost_center,
+    responsible: row.responsible
+      ? {
+          id: row.responsible.id,
+          displayName: row.responsible.display_name,
+          employeeCode: row.responsible.employee_code,
+        }
+      : null,
+    financial: canViewFinancial ? { invoiceNo: row.invoice_no } : null,
+    documents: [],
+    timeline: timeline.map((event) => ({
+      id: event.id,
+      eventCode: event.event_code,
+      actor: { label: event.actor_label },
+      occurredAt: event.created_at,
+      reason: event.reason,
+      changes: resolveReferenceChanges(
+        canViewFinancial
+          ? asChangeRecord(event.changes)
+          : maskMonetaryChanges(event.changes),
+        refNames,
+      ),
+    })),
+    profileVersion: row.profile_version,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }

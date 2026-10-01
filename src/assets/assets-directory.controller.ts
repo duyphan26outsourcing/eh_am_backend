@@ -1,10 +1,27 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Get,
+  Headers,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  Req,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { type AuthRequest } from '@/auth/auth.interface';
 import { API_VERSION_1 } from '@/common/constants/api-version.const';
-import { THROTTLE_SEARCH } from '@/common/constants/throttle.const';
+import {
+  THROTTLE_SEARCH,
+  THROTTLE_WRITE,
+} from '@/common/constants/throttle.const';
+import { requireIdempotencyKey } from '@/common/http/idempotency-key';
 import { ListAssetsQueryDto } from './dto/list-assets.dto';
+import { ChangeAssetResponsibleDto } from './dto/change-asset-responsible.dto';
+import { SetAssetLifecycleDto } from './dto/set-asset-lifecycle.dto';
 import { AssetsService } from './assets.service';
 
 /**
@@ -25,5 +42,61 @@ export class AssetsDirectoryController {
   @Throttle({ default: THROTTLE_SEARCH })
   async list(@Query() query: ListAssetsQueryDto, @Req() req: AuthRequest) {
     return this.service.list(query, req);
+  }
+
+  @Get(':id')
+  async detail(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.detail(id, req);
+  }
+
+  @Get(':id/responsibility-options')
+  async responsibilityOptions(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.responsibilityOptions(id, req);
+  }
+
+  @Patch(':id/responsible')
+  @Throttle({ default: THROTTLE_WRITE })
+  async changeResponsible(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: ChangeAssetResponsibleDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.changeResponsible(
+      id,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
+  }
+
+  @Get(':id/lifecycle-options')
+  async lifecycleOptions(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.lifecycleOptions(id, req);
+  }
+
+  @Patch(':id/lifecycle')
+  @Throttle({ default: THROTTLE_WRITE })
+  async changeLifecycle(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SetAssetLifecycleDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.changeLifecycle(
+      id,
+      dto,
+      requireIdempotencyKey(idempotencyKey),
+      req,
+    );
   }
 }

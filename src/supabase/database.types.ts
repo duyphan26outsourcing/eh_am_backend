@@ -101,6 +101,93 @@ export type Database = {
           },
         ];
       };
+      asset_cancellation_requests: {
+        Row: {
+          asset_id: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_reason_code_id: string | null;
+          decision_reason_note: string | null;
+          id: string;
+          request_reason_code_id: string;
+          request_reason_note: string | null;
+          requested_at: string;
+          requested_by: string;
+          status: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          asset_id: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_reason_code_id?: string | null;
+          decision_reason_note?: string | null;
+          id?: string;
+          request_reason_code_id: string;
+          request_reason_note?: string | null;
+          requested_at?: string;
+          requested_by: string;
+          status?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          asset_id?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_reason_code_id?: string | null;
+          decision_reason_note?: string | null;
+          id?: string;
+          request_reason_code_id?: string;
+          request_reason_note?: string | null;
+          requested_at?: string;
+          requested_by?: string;
+          status?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'asset_cancellation_requests_asset_id_fkey';
+            columns: ['asset_id'];
+            isOneToOne: false;
+            referencedRelation: 'assets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asset_cancellation_requests_decided_by_fkey';
+            columns: ['decided_by'];
+            isOneToOne: false;
+            referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asset_cancellation_requests_decision_reason_code_id_fkey';
+            columns: ['decision_reason_code_id'];
+            isOneToOne: false;
+            referencedRelation: 'reason_codes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asset_cancellation_requests_request_reason_code_id_fkey';
+            columns: ['request_reason_code_id'];
+            isOneToOne: false;
+            referencedRelation: 'reason_codes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asset_cancellation_requests_requested_by_fkey';
+            columns: ['requested_by'];
+            isOneToOne: false;
+            referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       asset_command_receipts: {
         Row: {
           actor_id: string;
@@ -1229,6 +1316,22 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      change_asset_responsible: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_id: string;
+          p_command_key: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_responsible_user_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       change_employee_account_status: {
         Args: {
           p_action: string;
@@ -1842,6 +1945,22 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      decide_asset_cancellation: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_cancellation_id: string;
+          p_command_key: string;
+          p_decision: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       grant_role_assignments: {
         Args: {
           p_actor_id: string;
@@ -1938,6 +2057,20 @@ export type Database = {
         Args: { p_invite_id: string; p_user_id: string };
         Returns: boolean;
       };
+      request_asset_cancellation: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_id: string;
+          p_command_key: string;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       resend_employee_invite: {
         Args: {
           p_actor_id: string;
@@ -1970,6 +2103,22 @@ export type Database = {
         };
         Returns: Json;
       };
+      set_asset_lifecycle_status: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_id: string;
+          p_command_key: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_target_status: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       terminate_employee: {
         Args: {
           p_actor_id: string;
@@ -1988,6 +2137,25 @@ export type Database = {
         Returns: Json;
       };
       unaccent: { Args: { '': string }; Returns: string };
+      update_asset_description: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_id: string;
+          p_asset_type_id: string;
+          p_command_key: string;
+          p_expected_version: number;
+          p_ip: unknown;
+          p_name: string;
+          p_note: string;
+          p_reason_code_id: string;
+          p_reason_note: string;
+          p_request_id: string;
+          p_serial: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       update_asset_type: {
         Args: {
           p_actor_id: string;

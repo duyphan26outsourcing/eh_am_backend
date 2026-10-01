@@ -15,6 +15,107 @@
 
 ---
 
+## 2026-10-02 — Claude → Duy — UC-AST-09/10 (đề nghị + duyệt huỷ hồ sơ) XONG + FIX timeline AST-08
+- **FIX bug AST-08 (Duy báo):** timeline hiển thị UUID trần + enum raw. Backend nay resolve UUID khóa
+  ngoại → tên (`asset.model.resolveReferenceChanges` + `assets.repository.resolveAuditReferenceNames`
+  gom tên theo lô, `service.detail` truyền vào mapper); FE dịch enum (lifecycle_status/physical_condition)
+  + thêm nhãn trường thiếu (cost_center_id…). Kiểm live: asset_type_id→"Máy tính xách tay",
+  cost_center_id→tên, location→tên, responsible→tên, lifecycle_status→code (FE dịch).
+- **UC-AST-09/10 end-to-end** (maker-checker huỷ hồ sơ tạo sai). Migration **21_asset_cancellation.sql**
+  (Duy ĐÃ CHẠY): bảng `asset_cancellation_requests` (PENDING/APPROVED/REJECTED, partial unique 1 PENDING/
+  asset, version) + RPC `request_asset_cancellation` (EX.1/3/5: trạng thái, trùng PENDING, NO_APPROVER;
+  nhóm lý do ASSET_CANCEL) + `decide_asset_cancellation` (SELF_APPROVAL_FORBIDDEN, version lock, APPROVE→
+  asset CANCELLED, REJECT nhóm APPROVAL_REJECT). Idempotency + audit nguyên tử, revoke/grant.
+- **BE:** `POST /v1/assets/:id/cancellation-request` (method-level @RequireContext ASSET_MANAGER+
+  ASSET_ACCOUNTANT, ghi đè lớp) + `GET :id/cancellation-options`; controller riêng
+  `AssetCancellationsController` `GET /v1/asset-cancellations` (hàng đợi, ASSET_MANAGER) + `GET
+  reject-options` + `POST :id/decision`. DTO/model/repo (queue resolve tên theo lô) + tests. ErrorCode
+  mới: CANCELLATION_PENDING_EXISTS, NO_APPROVER_AVAILABLE, CANCELLATION_ALREADY_DECIDED,
+  SELF_APPROVAL_FORBIDDEN. supabase.define + database.types thêm bảng + 2 RPC (gen:types đã chạy).
+- **Review DB + security: KHÔNG CRITICAL/HIGH.** Maker-checker/IDOR/idempotency/version/grants sạch.
+- **FE:** nút "Đề nghị huỷ hồ sơ" trên chi tiết (ASSET_MANAGER/ASSET_ACCOUNTANT) + dialog; trang hàng đợi
+  `/asset-cancellations` (nav "Duyệt huỷ hồ sơ", ASSET_MANAGER) + dialog Duyệt/Từ chối; schema dùng chung;
+  api/queries/i18n (`assets.cancellation.*`, `nav.cancellationQueue`) + test schema. FE error-code thêm 4 mã.
+- **"Hộp việc" (HO-24):** GĐ1 dùng trang hàng đợi thay push-notification; thông báo kết quả cho người đề
+  nghị HOÃN (chưa có module thông báo).
+- **Seed/Smoke:** seed thêm preset ASSET_CANCEL (DUPLICATE_RECORD/WRONG_ENTRY) + USE_STATUS_CHANGE.
+  smoke:m03 phủ 09/10 (options, hàng đợi, NO_APPROVER guard, decision 400). **PASS.** Duyệt/từ chối
+  happy-path cần 2 ASSET_MANAGER (DB hiện chỉ 1 admin) → chưa test live; đã có review + unit test.
+- **Kiểm chứng:** BE tsc 0 · eslint 0 · **jest 175/175** · smoke PASS. FE typecheck 0 · lint 0 error ·
+  **vitest 198/198** · build. Migrations 15–21 đã chạy.
+- **NỢ migration 22 (từ security review, CHƯA làm, không chặn):** (MEDIUM) RPC decide/request nên re-check
+  vai trò actor trong DB (phòng thủ, hiện guard lo — giống migration 18); (LOW) đảo thứ tự check
+  SELF_APPROVAL lên trước version/decided checks để trả 403 đúng cho người đề nghị. Gộp chung migration 22.
+- **Duy manual test:** chưa. Để test duyệt chéo: seed/gán thêm 1 ASSET_MANAGER platform khác admin rồi
+  đăng nhập 2 tài khoản.
+- **Làm tiếp (thứ tự logic M03 còn lại):** 04 (đề nghị điều chỉnh tài chính) → 12 (duyệt tài chính) → 06
+  (chứng từ/ảnh — storage) → 02 (nhập từ file).
+
+## 2026-10-01 — Claude → Duy — UC-AST-11 (đưa vào / ngừng sử dụng) XONG end-to-end
+- **Vừa xong:** UC-AST-11 đủ BE + FE + plan + DESIGN-README trước code + TDD + review + smoke/seed live PASS.
+- **BE:** migration **20_asset_lifecycle_status.sql** (Duy đã chạy) — RPC `set_asset_lifecycle_status` đổi
+  `IN_STORAGE ↔ IN_USE`, khóa `for update` + version lạc quan + idempotency (operation CHANGE_LIFECYCLE) +
+  audit `asset.lifecycle.changed`, CHỈ đổi lifecycle_status (giữ location/responsible/cost_center/condition,
+  BR-AST-04). Dùng nhóm lý do `USE_STATUS_CHANGE` có sẵn từ **02g** (KHÔNG đụng CHECK reason_group —
+  lần đầu em viết nhầm nới CHECK làm vỡ 21 nhóm 23514, đã sửa). Route `PATCH /v1/assets/:id/lifecycle` +
+  `GET /v1/assets/:id/lifecycle-options` trên AssetsDirectoryController; quyền + biên location ở service
+  (`responsibilityContext` dùng chung — platform ASSET_MANAGER / location LOCATION_MANAGER; scope rỗng →
+  403; ngoài scope → 404). ErrorCode mới `ASSET_STATUS_LOCKED` (409). DTO/model/repo + test
+  (DTO + service scope). **Review DB migration 20: CLEAN** (no CRITICAL/HIGH/MEDIUM).
+- **FE:** nút "Đưa vào sử dụng"/"Ngừng sử dụng" trên trang chi tiết (gating ASSET_MANAGER|LOCATION_MANAGER
+  + !readOnly + trạng thái ∈ {IN_STORAGE,IN_USE}); `AssetLifecycleDialog` (hiện chuyển trạng thái → chọn
+  lý do + ghi chú, xử lý 409/REASON_INVALID/ASSET_STATUS_LOCKED). api + queries + schema + test + i18n
+  `assets.lifecycleChange.*` (vi/en; LƯU Ý: key là `lifecycleChange` vì `lifecycle` đã dùng cho nhãn
+  trạng thái). FE error-code thêm `ASSET_STATUS_LOCKED`.
+- **Seed/Smoke:** `seed:m03` thêm preset `USE_STATUS_CHANGE` (PUT_INTO_USE / RETURN_TO_STORAGE);
+  `smoke:m03` phủ AST-11 (options, 409, toggle + replay + timeline + khôi phục). Chạy admin: **PASS**.
+- **Kiểm chứng:** BE tsc 0 · eslint 0 · **jest 167/167** · smoke PASS. FE typecheck 0 · lint 0 error/
+  warning cố hữu · **vitest 195/195** · build. Migrations 15–20 đã chạy.
+- **Duy manual test:** chưa. `/assets` → 1 tài sản → nút đưa vào/ngừng sử dụng.
+- **Làm tiếp (thứ tự logic M03):** 09 (đề nghị hủy hồ sơ) → 10 (duyệt hủy) → 04 (đề nghị điều chỉnh tài
+  chính) → 12 (duyệt tài chính) → 06 (chứng từ/ảnh, mở storage) → 02 (nhập từ file).
+- **Bẫy:** nhóm lý do đã có 22 nhóm từ 02g — khi cần nhóm mới PHẢI kiểm 02g trước, đừng tự nới CHECK.
+
+## 2026-10-01 — Claude (tiếp nối Codex) → Duy — UC-AST-05 REVIEW + VERIFY + SEED/SMOKE XONG
+- **Bối cảnh:** nhận bàn giao từ Codex. Codex đã viết CODE của UC-AST-05 (đổi người chịu trách nhiệm) + UC-AST-08 + UC-AST-03 và migrations 17/18/19, nhưng AST-05 **chưa review, chưa có trong handoff, chưa được smoke phủ**. Duy đã chạy migrations **17, 18, 19**. Em (Claude) review + verify + hoàn tất seed/smoke cho AST-05, không viết lại code của Codex.
+- **Review AST-05 (DB + security, 2 subagent): KHÔNG CRITICAL/HIGH.** Migration 18 (`change_asset_responsible`) + 19 (`terminate_employee` vá bàn giao tài sản) đúng mẫu: revoke public/anon/authenticated + grant service_role, `security definer set search_path`, idempotency theo full payload + actor, audit nguyên tử, `for update` asset + version lạc quan, BR-AST-09 re-validate trong RPC, 404 chống dò (IDOR sạch), EXTERNAL lock, trigger close-only của vai trò không bị vi phạm.
+- **Đã áp fix (LOW, rẻ + nhất quán):** thêm `@Max(2_147_483_647)` cho `profileVersion` ở `change-asset-responsible.dto.ts` **và** `update-asset-description.dto.ts` (chặn tràn int4 → 500, cùng lớp với fix `page` ở `PaginationQueryDto`). Sửa 1 lỗi kiểu thật trong `assets.repository.ts` `listResponsibilityOptions` (nhánh rỗng `{data:[],error:null}` làm ternary rộng thành `any` → loạt no-unsafe-*; đổi thành `null` + `?.`).
+- **NỢ CẦN MIGRATION 20 (ghi rõ, CHƯA làm — 18/19 đã chạy nên không sửa tại chỗ):**
+  - **(MEDIUM) TOCTOU vai trò:** 18 (dòng 81-91) và 19 (92-98) đọc vai trò người nhận KHÔNG khóa; một `revoke_role_assignment` (migration 11) xen vào giữa check và commit có thể để tài sản gắn người đã mất vai trò trên location (vỡ BR-AST-09). Cửa sổ hẹp, cần revoke đồng thời. Fix: migration 20 cho `revoke_role_assignment` khóa `user_profiles` của người bị thu hồi `for update` trước khi UPDATE (18/19 đã giữ `for share` hồ sơ đó → serialize). Kèm `and cra.revoked_by is null` vào điều kiện đọc vai trò ở 18/19 (phòng thủ).
+  - **(LOW) 19:** phần tử `p_asset_transfers` dị dạng (không phải object / asset_id sai UUID) raise lỗi PG thô thay vì `ASSET_HANDOVER_INVALID` → bọc exception; idempotency payload của 19 phụ thuộc thứ tự mảng → nên sort theo asset_id; `exception when others` nuốt 40xxx/55P03 (deadlock/lock-timeout) thành AUDIT_WRITE_FAILED → re-raise các class này.
+  - **(LOW) 18:** chưa kiểm location status (INACTIVE/đóng vẫn đổi được người) — chờ Duy chốt chính sách.
+- **Để lại (policy/INFO, không tự làm):** `responsibility-options` trả displayName+employeeCode của mọi ASSET_MANAGER platform (dữ liệu nhân sự chéo location — xác nhận với product); map lỗi dùng `message.includes` (an toàn hôm nay, default DATA_ACCESS_ERROR); `RESPONSIBLE_UNCHANGED → VALIDATION_FAILED` có thể đổi sang `NO_CHANGES` cho khớp AST-03 (INFO).
+- **Seed/Smoke (đã CHẠY THẬT, không chỉ node --check):**
+  - `tools/seed-m03-assets.mjs` nay thêm `ensureReasonCodes()` seed 3 lý do PROFILE_EDIT non-freetext (HANDOVER_RESIGNATION / HANDOVER_REASSIGN / PROFILE_CORRECTION) — trước đó nhóm này chỉ có 'Khác' (freetext) nên dialog bàn giao/sửa hồ sơ không có preset. Idempotent. Đã chạy: 3 lý do tạo mới, 3 tài sản tái dùng, **tổng assets=4**.
+  - `tools/smoke-m03-assets.mjs` + `npm run smoke:m03` nay phủ thêm **UC-AST-05**: options 200 + candidates + reasons; guard version cũ → 409 RECORD_VERSION_CONFLICT; chọn lại người hiện tại → 400 VALIDATION_FAILED; happy-path đổi người + replay + timeline `asset.responsible.changed` (tự bỏ qua nếu location chỉ có 1 người đủ vai trò). **Đã chạy với tài khoản admin: PASS toàn bộ.** Happy-path bị bỏ qua vì 3 asset seed đều ở KHO-HCM mà chỉ admin đủ vai trò ở đó; nhánh đổi người đã được jest unit test phủ.
+- **Kiểm chứng:** BE tsc 0 · eslint 0 · **jest 162/162** · server :3006 chạy, smoke PASS. FE typecheck 0 · lint 0 error/13 warning cố hữu · **vitest 192/192** (không đổi FE phiên này). `/assets` có 4 tài sản (TS000001 + TS000002-004).
+- **Duy manual test:** chưa. Gợi ý: mở `/assets` → bấm 1 asset → xem chi tiết/timeline; thử "Sửa thông tin" (AST-03) và "Đổi người chịu trách nhiệm" (AST-05). Để test ĐẦY ĐỦ bàn giao (happy-path đổi người thật) cần người thứ 2 đủ vai trò trên KHO-HCM: chạy `tools/smoke-employee-directory.mjs` rồi đặt `SMOKE_LOCATION_EMAIL=smoke.dir.active@example.com` `SMOKE_LOCATION_PASSWORD=SmokeEH#2026aA` khi chạy `smoke:m03` (đồng thời mở nhánh kiểm scope Location Manager).
+- **Migration cần Duy chạy:** KHÔNG (15-19 đã chạy). Migration 20 ở trên là nợ, chưa viết.
+- **Làm tiếp:** M03 còn UC-AST-04 (sửa thông tin tài chính), UC-AST-06 (chứng từ/ảnh — mở storage, AST-03/08 đang để `documents: []` chờ cái này), UC-AST-02 (QR). Hoặc viết migration 20 vá nợ TOCTOU trước nếu Duy ưu tiên độ chắc.
+- **Bẫy:** migrations 01-19 đã chạy KHÔNG sửa. `smoke:m03` cần server :3006 + `SMOKE_ADMIN_EMAIL/PASSWORD` (không hardcode). Seed dùng SUPABASE_SECRET_KEY từ .env, không cần login.
+
+## 2026-10-01 — Codex → Duy/Claude — UC-AST-03 XONG CODE + REVIEW; đang tiếp tục toàn bộ M03
+- **Cập nhật từ Duy:** migrations **17 và 18 đã chạy**. Không sửa lại hai file này; mọi vá tiếp theo phải dùng migration số mới.
+- **Vừa xong:** UC-AST-03 sửa thông tin mô tả tài sản, đủ plan BE + plan FE + `DESIGN-README.md` trước code và TDD RED→GREEN. `PATCH /v1/assets/:id/description` chỉ cho `ASSET_MANAGER` platform, bắt `Idempotency-Key`, chỉ nhận tên/loại/serial/ghi chú/lý do/`profileVersion`; không cho lẫn location, người chịu trách nhiệm, trạng thái hay tài chính. Migration mới **17_update_asset_description.sql** mở receipt operation `UPDATE_DESCRIPTION` và RPC khóa dòng + khóa lạc quan + no-op + idempotency + audit nguyên tử. Không sửa 01–16.
+- **Quy tắc:** loại mới phải là loại lá ACTIVE; serial theo cấu hình/unique; tài sản `DISPOSED`/`CANCELLED` chỉ xem; đổi `asset_kind` TSCĐ↔CCDC bắt buộc lý do `PROFILE_EDIT`, mục Khác bắt ghi rõ. Mã lỗi mới `ASSET_READ_ONLY`, `NO_CHANGES`; map lỗi không lộ SQL.
+- **Frontend:** nút **Sửa thông tin** chỉ hiện cho Asset Manager và hồ sơ chưa kết thúc; dialog responsive/a11y, form tên/loại/serial/ghi chú, khối lý do chỉ hiện khi đổi TSCĐ↔CCDC, i18n vi/en, xử lý version conflict. Timeline đã sửa để đọc đúng audit `{before,after}` (vẫn tương thích `{from,to}`). Ảnh chưa giả lập; sẽ nối storage thật khi làm UC-AST-06 rồi quay lại AST-03.
+- **Smoke/seed:** `tools/smoke-m03-assets.mjs` + `npm run smoke:m03` hiện phủ AST-01/03/07/08, giữ 3 hồ sơ mẫu, kiểm update + replay + timeline; thiếu credentials trong môi trường Codex nên chỉ `node --check` xanh, chưa chạy HTTP. Cần `SMOKE_ADMIN_EMAIL/PASSWORD` và server :3006.
+- **Kiểm chứng:** BE Jest **158/158**, tsc/eslint/build xanh. FE test detail **8/8**, typecheck/eslint/build xanh. `git diff --check` và `node --check` xanh. Security review: không còn CRITICAL/HIGH/MEDIUM ở endpoint mới; RPC revoke public/anon/authenticated, grant service_role. Không commit.
+- **Duy manual test:** chưa. **Migration chờ Duy chạy:** `sql-docs/migrations/17_update_asset_description.sql`, sau đó `npm run gen:types` (lưu ý sẽ ghi đè khai báo types thêm tay).
+- **Đang tiếp tục:** theo yêu cầu mới của Duy, không dừng sau từng UC; làm hết M03 rồi báo một lượt. Kế tiếp UC-AST-05, sau đó 11, 09/10, 04/12, 06, 02; đồng thời vá quyền đọc AST-07 theo QĐ-23 và mở rộng smoke/tracking sau mỗi UC.
+- **Bẫy:** migrations 01–16 đã chạy, không sửa. `terminate_employee` migration 14 vẫn chưa xử lý tài sản người nghỉ đang chịu trách nhiệm; phải vá bằng migration mới cùng UC-AST-05. AST-03 còn phần ảnh phụ thuộc UC-AST-06.
+
+## 2026-10-01 — Codex → Duy/Claude — UC-AST-08 (xem hồ sơ chi tiết tài sản) XONG CODE + REVIEW
+- **Bối cảnh:** Duy đã chạy migrations 15 và 16. Đã làm đúng một UC: **UC-AST-08 — Xem hồ sơ chi tiết tài sản**, đủ plan BE + plan FE + `DESIGN-README.md` trước code, TDD RED→GREEN, review security/a11y/UI và full verify. Không sửa migration 01–16, không tạo migration mới.
+- **BE:** `GET /v1/assets/:id` trên `AssetsDirectoryController` (Jwt guard; quyền + biên dữ liệu tại service). `ASSET_DETAIL_SCOPE`: platform `ASSET_MANAGER`, `ASSET_ACCOUNTANT`, `CHIEF_ACCOUNTANT`, `EXECUTIVE`, `AUDITOR`; location `LOCATION_MANAGER`. Repository lọc đồng thời `id` + `primary_location_id`; ngoài scope và không tồn tại cùng trả **404 NOT_FOUND**, không đọc timeline. Mapper không phơi `qr_token`, actor UUID, request/IP/user-agent hay supplier tax ID; `financial` chỉ có cho platform/superadmin, Location Manager nhận `null`; khóa tiền tệ trong audit changes bị mask đệ quy. `DISPOSED`/`CANCELLED` trả `readOnly=true`. Timeline lấy `audit_events`, cũ→mới.
+- **Chứng từ:** schema/bucket metadata chưa có (thuộc UC-AST-06) nên response cố ý trả `documents: []`, UI hiện empty state; không bịa table/storage/signed URL. Khi làm AST-06 phải giữ nguyên quy tắc kiểm quyền trước khi ký URL và không ghi URL vào audit.
+- **FE:** route `/assets/$id`, link từ Asset ID/tên ở `/assets`; header có Asset ID + badge vòng đời/tình trạng; card thông tin/vị trí-trách nhiệm/mua/tài chính có điều kiện; chứng từ rỗng; timeline Collapsible dùng bàn phím; loading/404/retry; responsive 1 cột mobile, i18n vi/en. Sidebar Tài sản đã mở đúng cho `ASSET_ACCOUNTANT` và `LOCATION_MANAGER` (trước đây API AST-07 cho phép nhưng nav chỉ hiện ASSET_MANAGER). Thiết kế kế thừa Every Half tokens/common components; không dùng GSAP trên màn dữ liệu dày.
+- **Review security:** không còn CRITICAL/HIGH/MEDIUM. Kiểm IDOR/scope, phân tách tài chính BR-CMN-06, field minimization, 404 chống dò, timeline chỉ tải sau khi asset trong scope. Không có write/audit/migration trong UC này.
+- **Kiểm chứng:** BE format + tsc 0 + eslint 0 + Jest **154/154** + build xanh. FE format + typecheck 0 + lint 0 error/**11 warning cố hữu** React Compiler (RHF/TanStack) + Vitest **185/185** + Vite build xanh. `git diff --check` sạch. Không commit.
+- **Duy manual test:** chưa. Test `/assets` → bấm Asset ID/tên → `/assets/<uuid>` bằng Asset Manager/Asset Accountant/Location Manager; xác nhận Location Manager ngoài scope nhận màn không tìm thấy và không thấy card tài chính; terminal asset chỉ xem. Migration cần chạy: **không**.
+- **Làm tiếp sau khi Duy xác nhận manual:** chọn UC M03 kế tiếp theo ưu tiên nghiệp vụ; gợi ý **UC-AST-03 (sửa mô tả)** hoặc **UC-AST-05 (đổi người chịu trách nhiệm + vá nợ terminate_employee bằng migration 17)**. Không tự nhảy UC trước xác nhận theo mục 3.1 HANDOFF-CODEX.
+- **Bẫy/lưu ý:** migrations 01–16 đã chạy, không sửa. UC text nhắc trạng thái `LOST` nhưng schema/enum hiện chưa có, không tự thêm. TBD-3 chưa chốt nên timeline dùng thứ tự tự nhiên “từ lúc tạo tới hiện tại” (cũ→mới), chưa có filter. Ban điều hành/Kế toán trưởng/Kiểm toán có quyền detail nhưng AST-07 chưa cho họ danh sách; không tự mở rộng list/nav ngoài UC-07.
+
 ## 2026-10-01 — Claude → Duy/Codex — UC-AST-07 (danh sách tài sản) XONG CODE + REVIEW
 - **Bối cảnh:** Duy đã chạy 15 (assets) và 16 (list_assets). Làm **UC-AST-07 — Tra cứu danh sách tài sản**: UC ĐỌC đầu tiên áp biên phạm vi location.
 - **BE:** migration **16_asset_directory.sql** RPC `list_assets` (tìm không dấu unaccent trên name+asset_code+serial; lọc loại/trạng thái/tình trạng/location; phạm vi location vào dưới dạng mảng `p_location_ids`; `count(*) over()`; revoke/grant hardening). Route `GET /v1/assets` trên controller riêng **AssetsDirectoryController** (chỉ `JwtAuthGuard`, KHÔNG @RequireContext — guard không diễn tả được "vai trò LOCATION trên bất kỳ location nào"). Phân quyền + biên dữ liệu ở **service** qua `AccessScopeService` + `ASSET_LIST_SCOPE` (platform: ASSET_MANAGER/ASSET_ACCOUNTANT → mọi location; location: LOCATION_MANAGER → location được gán; phạm vi rỗng → **403 ROLE_REQUIRED**, EX.1). Bộ lọc `locationId` do client chọn giao với scope trong RPC (EX.2 — lọc ngoài phạm vi → rỗng, không lộ). Mapper không phơi cột giá trị (BR-CMN-06) / qr_token. `database.types.ts` thêm tay `list_assets` (gen:types ghi đè). DTO/model/repository/service + test (service: rỗng→403 không gọi repo; platform→locationIds=null; location manager→đúng mảng).

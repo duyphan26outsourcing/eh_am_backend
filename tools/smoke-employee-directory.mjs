@@ -309,6 +309,32 @@ async function main() {
     const db = createClient(SUPA_URL, SUPA_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    // Tài khoản @example.com do script tạo là dữ liệu DEV/TEST, không có hộp thư thật.
+    // Xác nhận email bằng Admin API, tuyệt đối không áp dụng quy tắc này cho email ngoài namespace smoke.dir.*.
+    const { data: authPage, error: authListError } =
+      await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (authListError) {
+      check('đọc tài khoản Auth mẫu để xác nhận email', false, authListError.message);
+    } else {
+      const dummyUsers = authPage.users.filter((user) =>
+        user.email?.startsWith('smoke.dir.'),
+      );
+      for (const user of dummyUsers) {
+        if (!user.email_confirmed_at) {
+          const { error: confirmError } =
+            await db.auth.admin.updateUserById(user.id, {
+              email_confirm: true,
+            });
+          if (confirmError) {
+            check(`xác nhận email dummy ${user.email}`, false, confirmError.message);
+          }
+        }
+      }
+      check(
+        'email của tài khoản dummy được xác nhận không cần hộp thư thật',
+        dummyUsers.length > 0,
+      );
+    }
     const activeEmail = 'smoke.dir.active@example.com';
     await seedEmployee(
       {

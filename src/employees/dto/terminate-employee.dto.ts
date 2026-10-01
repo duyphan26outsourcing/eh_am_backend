@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -9,8 +9,17 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { ErrorCode } from '@/common/i18n/error-code.const';
+
+export class AssetTerminationTransferDto {
+  @IsUUID('4', { message: ErrorCode.INVALID_REFERENCE_ID })
+  assetId!: string;
+
+  @IsUUID('4', { message: ErrorCode.INVALID_REFERENCE_ID })
+  newResponsibleUserId!: string;
+}
 
 export class TerminateEmployeeDto {
   @IsInt({ message: ErrorCode.VALUE_OUT_OF_DOMAIN })
@@ -34,6 +43,8 @@ export class TerminateEmployeeDto {
 
   @IsDefined({ message: ErrorCode.REQUIRED_FIELD_MISSING })
   @IsArray({ message: ErrorCode.VALIDATION_FAILED })
-  @ArrayMaxSize(0, { message: ErrorCode.VALIDATION_FAILED })
-  assetTransfers!: never[];
+  @ArrayMaxSize(500, { message: ErrorCode.VALIDATION_FAILED })
+  @ValidateNested({ each: true })
+  @Type(() => AssetTerminationTransferDto)
+  assetTransfers!: AssetTerminationTransferDto[];
 }

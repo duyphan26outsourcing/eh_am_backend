@@ -422,13 +422,17 @@ export class EmployeesService {
   }
 
   async getTerminationPreview(employeeId: string) {
-    const [profileDetail, directReports, assignments, reasons] =
+    const [profileDetail, directReports, assignments, reasons, assets] =
       await Promise.all([
         this.getProfile(employeeId),
         this.repository.listDirectReports(employeeId),
         this.repository.findRoleAssignments(employeeId),
         this.repository.listTerminationReasons(),
+        this.repository.listAssetsForTermination(employeeId),
       ]);
+    const candidates = await this.repository.listAssetHandoverCandidates([
+      ...new Set(assets.map((asset) => asset.primary_location_id)),
+    ]);
     return {
       employee: profileDetail.profile,
       directReports: directReports.map((row) => ({
@@ -439,7 +443,19 @@ export class EmployeesService {
       openRoles: assignments
         .map((row) => toRoleAssignmentModel(row))
         .filter((row) => row.status === 'ACTIVE' || row.status === 'UPCOMING'),
-      assets: [],
+      assets: assets.map((asset) => ({
+        id: asset.id,
+        code: asset.asset_code,
+        name: asset.name,
+        locationId: asset.primary_location_id,
+        locationCode: asset.location?.code ?? '',
+        locationName: asset.location?.name ?? '',
+        candidates: candidates.filter(
+          (person) =>
+            person.id !== employeeId &&
+            person.locationIds.includes(asset.primary_location_id),
+        ),
+      })),
       options: {
         managers: profileDetail.options.managers,
         reasons: reasons.map((reason) => ({
@@ -466,7 +482,10 @@ export class EmployeesService {
       p_new_manager_id: dto.newManagerId ?? null,
       p_reason_code_id: dto.reasonCodeId,
       p_reason_note: dto.reasonNote ?? '',
-      p_asset_transfers: dto.assetTransfers,
+      p_asset_transfers: dto.assetTransfers.map((transfer) => ({
+        assetId: transfer.assetId,
+        newResponsibleUserId: transfer.newResponsibleUserId,
+      })),
       p_actor_id: req.user.sub,
       p_actor_label: audit.actorLabel ?? '',
       p_request_id: audit.requestId ?? '',

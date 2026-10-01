@@ -529,6 +529,78 @@ export class EmployeesRepository extends BaseRepository {
     );
   }
 
+  async listAssetsForTermination(employeeId: string) {
+    const result = await this.db
+      .from(SupabaseTable.ASSETS)
+      .select(
+        'id,asset_code,name,primary_location_id,lifecycle_status,location:locations!assets_primary_location_id_fkey(id,code,name,type)',
+      )
+      .eq('responsible_user_id', employeeId)
+      .not('lifecycle_status', 'in', '(DISPOSED,CANCELLED)')
+      .order('asset_code');
+    return this.many(result).filter((row) => row.location?.type !== 'EXTERNAL');
+  }
+
+  async listAssetHandoverCandidates(locationIds: string[]) {
+    if (locationIds.length === 0) return [];
+    const now = new Date().toISOString();
+    const [locationAssignments, platformAssignments] = await Promise.all([
+      this.db
+        .from(SupabaseTable.CONTEXT_ROLE_ASSIGNMENTS)
+        .select('subject_id,context_id')
+        .eq('subject_type', 'USER')
+        .eq('context_type', 'LOCATION')
+        .in('context_id', locationIds)
+        .in('role_code', ['LOCATION_MANAGER', 'LOCATION_STAFF'])
+        .lte('effective_from', now)
+        .or(`effective_to.is.null,effective_to.gt."${now}"`),
+      this.db
+        .from(SupabaseTable.CONTEXT_ROLE_ASSIGNMENTS)
+        .select('subject_id')
+        .eq('subject_type', 'USER')
+        .eq('context_type', 'PLATFORM')
+        .eq('role_code', 'ASSET_MANAGER')
+        .lte('effective_from', now)
+        .or(`effective_to.is.null,effective_to.gt."${now}"`),
+    ]);
+    for (const result of [locationAssignments, platformAssignments]) {
+      if (result.error) mapSupabasePostgrestError(result.error);
+    }
+    const ids = [
+      ...new Set(
+        [
+          ...(locationAssignments.data ?? []),
+          ...(platformAssignments.data ?? []),
+        ].map((row) => row.subject_id),
+      ),
+    ];
+    if (ids.length === 0) return [];
+    const people = await this.db
+      .from(SupabaseTable.USER_PROFILES)
+      .select('id,display_name,employee_code')
+      .eq('status', 'ACTIVE')
+      .in('id', ids)
+      .order('display_name');
+    if (people.error) mapSupabasePostgrestError(people.error);
+    const platformIds = new Set(
+      (platformAssignments.data ?? []).map((row) => row.subject_id),
+    );
+    const locationsByPerson = new Map<string, Set<string>>();
+    for (const row of locationAssignments.data ?? []) {
+      const set = locationsByPerson.get(row.subject_id) ?? new Set<string>();
+      set.add(row.context_id);
+      locationsByPerson.set(row.subject_id, set);
+    }
+    return (people.data ?? []).map((person) => ({
+      id: person.id,
+      displayName: person.display_name,
+      employeeCode: person.employee_code,
+      locationIds: platformIds.has(person.id)
+        ? locationIds
+        : [...(locationsByPerson.get(person.id) ?? [])],
+    }));
+  }
+
   async listActiveManagerCandidates() {
     return this.many(
       await this.db
@@ -834,6 +906,8 @@ export class EmployeesRepository extends BaseRepository {
       throw new AppException(ErrorCode.REQUEST_TIMEOUT);
     if (
       message.includes('ASSET_HANDOVER_UNAVAILABLE') ||
+      message.includes('ASSET_HANDOVER_REQUIRED') ||
+      message.includes('ASSET_HANDOVER_INVALID') ||
       message.includes('IDEMPOTENCY_KEY_REUSED')
     )
       throw new AppException(ErrorCode.VALIDATION_FAILED);
