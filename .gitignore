@@ -54,6 +54,9 @@ lerna-debug.log*
 !.env.example
 !.env.production.example
 
+# Thông tin tài khoản admin khởi tạo (email/mật khẩu break-glass) — không bao giờ commit.
+admin-account.md
+
 # temp directory
 .temp
 .tmp

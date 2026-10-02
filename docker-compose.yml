@@ -1,0 +1,71 @@
+# ============================================================================
+# EVERY HALF · ASSET MANAGEMENT — BACKEND, CHẠY TRÊN VPS DÙNG CHUNG
+# ============================================================================
+#
+# ⚠️ VPS NÀY CÒN CHẠY VÀI APP KHÁC (mỗi app một user Linux + một cổng loopback
+# riêng). Bốn giá trị dưới đây PHẢI khác mọi app khác trên cùng máy — trùng một
+# cái là hai hệ thống ghi đè lẫn nhau:
+#
+#   | Hạng mục       | Các app khác (đang chạy) | EH_AM            |
+#   | -------------- | ------------------------ | ---------------- |
+#   | User Linux     | (user riêng từng app)    | ehamdeploy       |
+#   | Cổng loopback  | 3001, 3003, 3005 đã dùng | 127.0.0.1:3006   |
+#   | Container      | (tên riêng từng app)     | eh-am-backend    |
+#   | Tên project    | (mặc định thư mục)       | eh-am            |
+#
+# Chi tiết ở deployment-docs/README.md.
+
+# ⚠️ `name` KHAI TƯỜNG MINH, không để Compose tự suy từ tên thư mục.
+#
+# Compose đặt tên network/volume theo tên project. Để mặc định thì nó lấy tên
+# thư mục — clone repo vào thư mục tên khác là Compose coi như project MỚI: dựng
+# container thứ hai thay vì thay thế cái đang chạy, rồi cổng 3006 bị chiếm và
+# container mới chết.
+name: eh-am
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eh-am-backend
+
+    # ⚠️ `.env`, KHÔNG phải `.env.production.local`.
+    #
+    # File trên VPS phải đúng tên này. Bẫy hay gặp khi `scp`: tên nguồn là
+    # `.env.production.local`, quên đổi tên ở đích thì container khởi động KHÔNG
+    # có biến nào rồi chết ngay ở SupabaseAdminService với `Invalid URL`.
+    env_file:
+      - .env
+
+    ports:
+      # ======================================================================
+      # ⚠️ `127.0.0.1:` LÀ PHẦN QUAN TRỌNG NHẤT CỦA FILE NÀY
+      # ======================================================================
+      #
+      # Bỏ tiền tố đó (chỉ `"3006:3006"`) thì Docker publish ra `0.0.0.0` và tự
+      # thêm rule iptables ĐỨNG TRƯỚC UFW: UFW không mở 3006, `ufw status` trông
+      # bình thường, nhưng API vẫn lộ thẳng ra Internet — bỏ qua TLS, bỏ qua
+      # rate limit của nginx, và làm `TRUST_PROXY_HOPS` trở thành sai.
+      #
+      # nginx trên host nhận traffic ở 443 rồi chuyển vào đây. Container không
+      # bao giờ nói chuyện trực tiếp với Internet.
+      - '127.0.0.1:3006:3006'
+
+    # ⚠️ `unless-stopped`, không phải `always`: cả hai tự dậy khi VPS reboot,
+    # nhưng `always` còn tự khởi động lại cả container mà người vận hành cố ý
+    # `docker stop` để xử lý sự cố.
+    restart: unless-stopped
+
+    # ⚠️ Healthcheck khai ở Dockerfile, KHÔNG lặp ở đây (một nguồn sự thật;
+    # Compose sẽ ghi đè bản Dockerfile nếu khai cả hai).
+
+    logging:
+      # ⚠️ Giới hạn log là bắt buộc trên VPS dùng chung: `json-file` mặc định
+      # không giới hạn, một vòng lặp lỗi ghi log sẽ ăn hết ổ đĩa — và ổ đầy thì
+      # các app khác trên cùng VPS cũng chết (chung Docker daemon + nginx).
+      # 3 file × 10 MB = tối đa 30 MB mỗi container.
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
