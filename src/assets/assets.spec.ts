@@ -8,8 +8,13 @@ import { SetAssetLifecycleDto } from './dto/set-asset-lifecycle.dto';
 import { RequestAssetCancellationDto } from './dto/request-asset-cancellation.dto';
 import { DecideAssetCancellationDto } from './dto/decide-asset-cancellation.dto';
 import { ListCancellationsQueryDto } from './dto/list-cancellations.dto';
+import {
+  RequestDocumentUploadDto,
+  ConfirmDocumentDto,
+} from './dto/asset-document.dto';
 import { toCreatedAssetModel, type CreatedAssetRow } from './asset.model';
 import { AssetsService } from './assets.service';
+import { AssetDocumentsService } from './asset-documents.service';
 
 function assetRow(overrides: Partial<CreatedAssetRow> = {}): CreatedAssetRow {
   return {
@@ -292,6 +297,7 @@ describe('AssetsService.detail (UC-AST-08)', () => {
       findDetailInScope: jest.fn().mockResolvedValue(detailRow),
       listTimeline: jest.fn().mockResolvedValue(timelineRows),
       resolveAuditReferenceNames: jest.fn().mockResolvedValue({}),
+      listDocuments: jest.fn().mockResolvedValue([]),
     };
     const accessScope = {
       resolveLocationScope: jest.fn().mockResolvedValue(scope),
@@ -837,5 +843,230 @@ describe('AssetsService cancellation (UC-AST-09/10)', () => {
         p_command_key: 'cmd-2',
       }),
     );
+  });
+});
+
+describe('Asset document DTOs (UC-AST-06)', () => {
+  it('accepts a valid upload request', () => {
+    const dto = plainToInstance(RequestDocumentUploadDto, {
+      docType: 'INVOICE',
+      fileName: 'hoa-don.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 1000,
+    });
+    expect(validateSync(dto)).toHaveLength(0);
+  });
+
+  it('rejects a bad docType and non-positive size', () => {
+    const dto = plainToInstance(RequestDocumentUploadDto, {
+      docType: 'NOPE',
+      fileName: 'x',
+      contentType: 'application/pdf',
+      sizeBytes: 0,
+    });
+    expect(validateSync(dto).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('requires a storage path on confirm', () => {
+    const dto = plainToInstance(ConfirmDocumentDto, {
+      docType: 'PHOTO',
+      storagePath: '',
+      fileName: 'a.png',
+      contentType: 'image/png',
+      sizeBytes: 10,
+    });
+    expect(validateSync(dto).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('AssetDocumentsService (UC-AST-06)', () => {
+  const req = {
+    user: { sub: 'actor-1' },
+    headers: {},
+    ip: '127.0.0.1',
+  } as never;
+  const activeAsset = {
+    id: 'asset-1',
+    asset_code: 'TS000001',
+    primary_location_id: 'loc-1',
+    location_type: 'STORE',
+    responsible_user_id: 'u1',
+    lifecycle_status: 'IN_USE',
+    profile_version: 1,
+  };
+
+  it('rejects a file type outside the allowlist', async () => {
+    const repository = { findResponsibilityContext: jest.fn() };
+    const service = new AssetDocumentsService(
+      repository as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.requestUploadUrl('asset-1', {
+        docType: 'INVOICE',
+        fileName: 'a.exe',
+        contentType: 'application/x-msdownload',
+        sizeBytes: 10,
+      }),
+    ).rejects.toMatchObject({ code: ErrorCode.FILE_TYPE_NOT_ALLOWED });
+  });
+
+  it('rejects a file over the max size', async () => {
+    const service = new AssetDocumentsService(
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.requestUploadUrl('asset-1', {
+        docType: 'PHOTO',
+        fileName: 'a.png',
+        contentType: 'image/png',
+        sizeBytes: 20 * 1024 * 1024,
+      }),
+    ).rejects.toMatchObject({ code: ErrorCode.FILE_TOO_LARGE });
+  });
+
+  it('issues an upload url for an active asset', async () => {
+    const repository = {
+      findResponsibilityContext: jest.fn().mockResolvedValue(activeAsset),
+    };
+    const storage = {
+      buildPath: jest.fn().mockReturnValue('assets/asset-1/uuid-a.pdf'),
+      createUploadUrl: jest.fn().mockResolvedValue({
+        uploadUrl: 'u',
+        token: 't',
+        path: 'assets/asset-1/uuid-a.pdf',
+      }),
+    };
+    const service = new AssetDocumentsService(
+      repository as never,
+      storage as never,
+      {} as never,
+    );
+    await expect(
+      service.requestUploadUrl('asset-1', {
+        docType: 'INVOICE',
+        fileName: 'a.pdf',
+        contentType: 'application/pdf',
+        sizeBytes: 1000,
+      }),
+    ).resolves.toMatchObject({ path: 'assets/asset-1/uuid-a.pdf' });
+    expect(storage.createUploadUrl).toHaveBeenCalledWith(
+      'assets/asset-1/uuid-a.pdf',
+    );
+  });
+
+  it('rejects confirm with a storage path from another asset', async () => {
+    const repository = {
+      findResponsibilityContext: jest.fn().mockResolvedValue(activeAsset),
+    };
+    const service = new AssetDocumentsService(
+      repository as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.confirmDocument(
+        'asset-1',
+        {
+          docType: 'INVOICE',
+          storagePath: 'assets/other/x.pdf',
+          fileName: 'a.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 10,
+        },
+        req,
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.INVALID_REFERENCE_ID });
+  });
+
+  it('attaches a confirmed document', async () => {
+    const repository = {
+      findResponsibilityContext: jest.fn().mockResolvedValue(activeAsset),
+      attachDocumentViaRpc: jest.fn().mockResolvedValue({
+        id: 'doc-1',
+        doc_type: 'INVOICE',
+        file_name: 'a.pdf',
+        uploaded_at: '2026-10-02T00:00:00Z',
+      }),
+    };
+    const storage = { objectExists: jest.fn().mockResolvedValue(true) };
+    const service = new AssetDocumentsService(
+      repository as never,
+      storage as never,
+      {} as never,
+    );
+    await expect(
+      service.confirmDocument(
+        'asset-1',
+        {
+          docType: 'INVOICE',
+          storagePath:
+            'assets/asset-1/11111111-1111-4111-8111-111111111111-a.pdf',
+          fileName: 'a.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 10,
+        },
+        req,
+      ),
+    ).resolves.toMatchObject({ id: 'doc-1', docType: 'INVOICE' });
+    expect(repository.attachDocumentViaRpc).toHaveBeenCalled();
+  });
+
+  it('hides an invoice from a non-financial (location) viewer', async () => {
+    const repository = {
+      findDetailInScope: jest.fn().mockResolvedValue({ id: 'asset-1' }),
+      findDocument: jest.fn().mockResolvedValue({
+        id: 'doc-1',
+        asset_id: 'asset-1',
+        doc_type: 'INVOICE',
+        storage_path: 'assets/asset-1/x.pdf',
+      }),
+    };
+    const storage = { createDownloadUrl: jest.fn() };
+    const accessScope = {
+      resolveLocationScope: jest
+        .fn()
+        .mockResolvedValue({ allLocations: false, locationIds: ['loc-1'] }),
+    };
+    const service = new AssetDocumentsService(
+      repository as never,
+      storage as never,
+      accessScope as never,
+    );
+    await expect(
+      service.getDownloadUrl('asset-1', 'doc-1', req),
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it('returns a signed url for a platform viewer', async () => {
+    const repository = {
+      findDetailInScope: jest.fn().mockResolvedValue({ id: 'asset-1' }),
+      findDocument: jest.fn().mockResolvedValue({
+        id: 'doc-1',
+        asset_id: 'asset-1',
+        doc_type: 'INVOICE',
+        storage_path: 'assets/asset-1/x.pdf',
+      }),
+    };
+    const storage = {
+      createDownloadUrl: jest.fn().mockResolvedValue('https://signed'),
+    };
+    const accessScope = {
+      resolveLocationScope: jest
+        .fn()
+        .mockResolvedValue({ allLocations: true, locationIds: [] }),
+    };
+    const service = new AssetDocumentsService(
+      repository as never,
+      storage as never,
+      accessScope as never,
+    );
+    await expect(
+      service.getDownloadUrl('asset-1', 'doc-1', req),
+    ).resolves.toMatchObject({ url: 'https://signed' });
   });
 });

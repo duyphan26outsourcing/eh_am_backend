@@ -15,6 +15,40 @@
 
 ---
 
+## 2026-10-02 — Claude → Duy — UC-AST-06 (đính kèm chứng từ) XONG end-to-end + panel upload Larksuite
+- **UC-AST-06** đầy đủ BE + FE + plan + DESIGN-README (dùng skill frontend-design) + TDD + review + seed/smoke.
+  Nền cho UC-AST-04 (chứng từ căn cứ).
+- **Storage:** migration **22_asset_documents.sql** (Duy ĐÃ CHẠY) — bucket RIÊNG TƯ `asset-documents`
+  (deny-by-default) + bảng `asset_documents` + RPC `attach_asset_document` (insert + audit nguyên tử,
+  idempotent theo storage_path, audit KHÔNG chứa signed URL — BR-AUD-02). Upload **thẳng trình duyệt →
+  Storage** qua signed URL (request tới server <256KB). Đọc qua signed URL 60s sau khi kiểm quyền.
+- **BE:** `AssetStorageService` (createSignedUploadUrl/createSignedUrl/objectExists),
+  `AssetDocumentsService` (requestUploadUrl + confirm + getDownloadUrl, BR-CMN-06 hoá đơn/PO chỉ vai trò
+  tài chính). Endpoint: `POST /assets/:id/documents/upload-url` + `POST /assets/:id/documents` (platform
+  ASSET_MANAGER/ASSET_ACCOUNTANT); `GET /assets/:id/documents/:docId/url` (JwtAuthGuard, scope ở service).
+  `service.detail` nay trả `documents` thật (lọc BR-CMN-06). ErrorCode mới FILE_STORAGE_ERROR/
+  FILE_TYPE_NOT_ALLOWED/FILE_TOO_LARGE. supabase.define + database.types thêm bảng + RPC (gen:types đã chạy).
+- **Review DB+security: KHÔNG CRITICAL/HIGH.** Đã sửa ngay: **M1** siết regex storagePath (chặn path
+  traversal/IDOR trong confirm). Viết **migration 23_asset_documents_hardening.sql** (CHƯA chạy): **M2**
+  set `file_size_limit`+`allowed_mime_types` ở bucket; **L3** trigger append-only cho asset_documents.
+  Để lại (ghi): M3 orphan-sweep tệp upload chưa confirm; L1 Content-Disposition (giữ xem inline cho "Xem").
+- **FE (full skill FE):** khối "Chứng từ" trên chi tiết (badge loại theo tone, tên/người/ngày, nút Xem mở
+  signed URL) + dialog chọn loại + dropzone (kéo-thả, kiểm loại/dung lượng client). **Panel tải lên góc
+  dưới-phải kiểu Larksuite** (`upload-progress-panel.tsx` + `upload-store` zustand + `use-asset-document-
+  uploader` + XHR progress): % + tốc độ, trạng thái Đang tải (neutral) / Đã tải lên (xanh lá) / Lỗi (đỏ),
+  thu gọn/đóng; mount ở `AuthenticatedLayout`. Dialog enqueue rồi đóng, upload chạy nền. i18n
+  `assets.documents.*` + `.panel.*` (vi/en). FE error-code không cần mã mới (dùng message).
+- **Seed/Smoke:** seed:m03 gắn 1 chứng từ mẫu (HANDOVER) vào TS000001 để manual test danh sách + nút Xem;
+  smoke:m03 phủ AST-06 (upload-url 200 + guard loại tệp). **PASS.**
+- **Kiểm chứng:** BE tsc 0 · eslint 0 · **jest 185/185** · smoke PASS. FE typecheck 0 · lint 0 error ·
+  **vitest 201/201** · build. Migrations 15–22 đã chạy.
+- **Migration cần Duy chạy: `sql-docs/migrations/23_asset_documents_hardening.sql`** (hardening, không chặn
+  tính năng) rồi `gen:types`.
+- **Duy manual test:** chưa. Mở `/assets` → TS000001 (có chứng từ mẫu) để xem/nút Xem; thử Đính kèm chứng
+  từ trên 1 tài sản → xem panel upload góc dưới-phải (progress %, xanh khi xong / đỏ khi lỗi).
+- **Làm tiếp (M03 còn lại):** UC-AST-04 (đề nghị điều chỉnh tài chính — nay đã có chứng từ căn cứ; cần thêm
+  cột tài chính vào assets) → UC-AST-12 (duyệt tài chính) → UC-AST-02 (nhập từ file).
+
 ## 2026-10-02 — Claude → Duy — UC-AST-09/10 (đề nghị + duyệt huỷ hồ sơ) XONG + FIX timeline AST-08
 - **FIX bug AST-08 (Duy báo):** timeline hiển thị UUID trần + enum raw. Backend nay resolve UUID khóa
   ngoại → tên (`asset.model.resolveReferenceChanges` + `assets.repository.resolveAuditReferenceNames`

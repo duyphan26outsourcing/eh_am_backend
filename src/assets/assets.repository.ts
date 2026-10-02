@@ -23,6 +23,10 @@ import {
   type DecidedCancellationRow,
   type CancellationQueueItemModel,
   toCancellationQueueItemModel,
+  type AssetDocumentRow,
+  type AssetDocumentModel,
+  toAssetDocumentModel,
+  type AttachedDocumentRow,
 } from './asset.model';
 
 export interface ListAssetsArgs {
@@ -105,6 +109,20 @@ export interface RequestCancellationArgs {
   p_asset_id: string;
   p_reason_code_id: string;
   p_reason_note: string | null;
+  p_actor_id: string;
+  p_actor_label: string;
+  p_request_id: string;
+  p_ip: string | null | undefined;
+  p_user_agent: string;
+}
+
+export interface AttachDocumentArgs {
+  p_asset_id: string;
+  p_doc_type: string;
+  p_file_name: string;
+  p_storage_path: string;
+  p_content_type: string;
+  p_size_bytes: number;
   p_actor_id: string;
   p_actor_label: string;
   p_request_id: string;
@@ -759,6 +777,70 @@ export class AssetsRepository extends BaseRepository {
       throw new AppException(ErrorCode.REQUEST_TIMEOUT);
     if (message.includes('IDEMPOTENCY_KEY_REUSED'))
       throw new AppException(ErrorCode.VALIDATION_FAILED);
+    throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+  }
+
+  async attachDocumentViaRpc(
+    args: AttachDocumentArgs,
+  ): Promise<AttachedDocumentRow> {
+    const { data, error } = await this.db.rpc('attach_asset_document', args);
+    if (error) this.handleAttachDocumentRpcError(error.message);
+    if (!data) throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
+    return data;
+  }
+
+  // Danh sách chứng từ của hồ sơ (resolve tên người tải theo lô). BR-CMN-06 lọc ở service.
+  async listDocuments(assetId: string): Promise<AssetDocumentModel[]> {
+    const result = await this.db
+      .from(SupabaseTable.ASSET_DOCUMENTS)
+      .select(
+        'id,asset_id,doc_type,file_name,storage_path,content_type,size_bytes,uploaded_by,uploaded_at',
+      )
+      .eq('asset_id', assetId)
+      .order('uploaded_at', { ascending: false });
+    if (result.error) mapSupabasePostgrestError(result.error);
+    const rows = (result.data ?? []) as AssetDocumentRow[];
+    const userIds = [...new Set(rows.map((row) => row.uploaded_by))];
+    const names = new Map<string, string>();
+    if (userIds.length) {
+      const people = await this.db
+        .from(SupabaseTable.USER_PROFILES)
+        .select('id,display_name')
+        .in('id', userIds);
+      if (people.error) mapSupabasePostgrestError(people.error);
+      for (const item of people.data ?? [])
+        names.set(item.id, item.display_name);
+    }
+    return rows.map((row) =>
+      toAssetDocumentModel(row, names.get(row.uploaded_by) ?? null),
+    );
+  }
+
+  // Một chứng từ thuộc hồ sơ (để cấp signed URL) — gồm storage_path + doc_type cho kiểm BR-CMN-06.
+  async findDocument(
+    assetId: string,
+    documentId: string,
+  ): Promise<AssetDocumentRow | null> {
+    const result = await this.db
+      .from(SupabaseTable.ASSET_DOCUMENTS)
+      .select(
+        'id,asset_id,doc_type,file_name,storage_path,content_type,size_bytes,uploaded_by,uploaded_at',
+      )
+      .eq('id', documentId)
+      .eq('asset_id', assetId)
+      .maybeSingle();
+    return this.maybe(result);
+  }
+
+  private handleAttachDocumentRpcError(message: string): never {
+    if (message.includes('ASSET_NOT_FOUND'))
+      throw new AppException(ErrorCode.NOT_FOUND);
+    if (message.includes('ASSET_READ_ONLY'))
+      throw new AppException(ErrorCode.ASSET_READ_ONLY);
+    if (message.includes('DOCUMENT_TYPE_INVALID'))
+      throw new AppException(ErrorCode.VALUE_OUT_OF_DOMAIN);
+    if (message.includes('AUDIT_WRITE_FAILED'))
+      throw new AppException(ErrorCode.AUDIT_WRITE_FAILED);
     throw new AppException(ErrorCode.DATA_ACCESS_ERROR);
   }
 

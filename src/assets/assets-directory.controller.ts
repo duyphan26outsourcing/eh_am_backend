@@ -23,6 +23,7 @@ import { ListAssetsQueryDto } from './dto/list-assets.dto';
 import { ChangeAssetResponsibleDto } from './dto/change-asset-responsible.dto';
 import { SetAssetLifecycleDto } from './dto/set-asset-lifecycle.dto';
 import { AssetsService } from './assets.service';
+import { AssetDocumentsService } from './asset-documents.service';
 
 /**
  * Danh sách tài sản (UC-AST-07) — nhiều vai trò dùng (Quản lý tài sản/Kế toán tài sản toàn hệ thống,
@@ -36,7 +37,10 @@ import { AssetsService } from './assets.service';
 @Controller({ path: 'assets', version: API_VERSION_1 })
 @UseGuards(JwtAuthGuard)
 export class AssetsDirectoryController {
-  constructor(private readonly service: AssetsService) {}
+  constructor(
+    private readonly service: AssetsService,
+    private readonly documents: AssetDocumentsService,
+  ) {}
 
   @Get()
   @Throttle({ default: THROTTLE_SEARCH })
@@ -50,6 +54,17 @@ export class AssetsDirectoryController {
     @Req() req: AuthRequest,
   ) {
     return this.service.detail(id, req);
+  }
+
+  // UC-AST-06: cấp signed URL có thời hạn để xem chứng từ (kiểm scope + BR-CMN-06 ở service).
+  @Get(':id/documents/:documentId/url')
+  @Throttle({ default: THROTTLE_SEARCH })
+  async documentUrl(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('documentId', new ParseUUIDPipe()) documentId: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.documents.getDownloadUrl(id, documentId, req);
   }
 
   @Get(':id/responsibility-options')

@@ -10,6 +10,7 @@
  *                                         PATCH /v1/assets/:id/lifecycle
  *   UC-AST-09  Đề nghị huỷ hồ sơ         POST /v1/assets/:id/cancellation-request
  *   UC-AST-10  Duyệt/từ chối huỷ         GET  /v1/asset-cancellations, POST :id/decision
+ *   UC-AST-06  Đính kèm chứng từ         POST /v1/assets/:id/documents/upload-url
  *
  * Script giữ lại dữ liệu mẫu để manual test trên http://localhost:5175/assets.
  * Không hardcode tài khoản/mật khẩu và không xoá dữ liệu nghiệp vụ.
@@ -785,6 +786,43 @@ async function main() {
       'decision ngoài miền → 400',
       badDecision.status === 400,
       `status=${badDecision.status} code=${badDecision.json?.code ?? ''}`,
+    );
+  }
+
+  console.log('\n[UC-AST-06] Chứng từ (xin URL tải lên)');
+  if (first) {
+    const up = await call('POST', `/assets/${first.id}/documents/upload-url`, {
+      token: admin.token,
+      body: {
+        docType: 'HANDOVER',
+        fileName: 'smoke-bien-ban.pdf',
+        contentType: 'application/pdf',
+        sizeBytes: 1024,
+      },
+    });
+    check(
+      'POST upload-url trả 200 + uploadUrl',
+      (up.status === 200 || up.status === 201) &&
+        typeof up.json?.uploadUrl === 'string',
+      `status=${up.status} code=${up.json?.code ?? ''}`,
+    );
+    const badType = await call(
+      'POST',
+      `/assets/${first.id}/documents/upload-url`,
+      {
+        token: admin.token,
+        body: {
+          docType: 'HANDOVER',
+          fileName: 'x.exe',
+          contentType: 'application/x-msdownload',
+          sizeBytes: 1024,
+        },
+      },
+    );
+    check(
+      'upload-url loại tệp không hợp lệ → 400 FILE_TYPE_NOT_ALLOWED',
+      badType.status === 400 && badType.json?.code === 'FILE_TYPE_NOT_ALLOWED',
+      `status=${badType.status} code=${badType.json?.code ?? ''}`,
     );
   }
 

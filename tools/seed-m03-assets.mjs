@@ -137,6 +137,54 @@ async function ensureReasonCodes(actor) {
   }
 }
 
+// UC-AST-06: gắn một chứng từ mẫu (HANDOVER, không phải tài chính nên mọi vai trò xem được) vào tài
+// sản seed đầu tiên để manual test danh sách chứng từ + nút Xem. Idempotent theo storage_path.
+async function ensureSampleDocument(actor) {
+  const { data: assets } = await db
+    .from('assets')
+    .select('id,asset_code')
+    .eq('serial', 'SMOKE-M03-001')
+    .limit(1);
+  const asset = assets?.[0];
+  if (!asset) return;
+  const path = `assets/${asset.id}/seed-handover.pdf`;
+  const { data: existing } = await db
+    .from('asset_documents')
+    .select('id')
+    .eq('storage_path', path)
+    .maybeSingle();
+  if (existing) {
+    console.log(`• Chứng từ mẫu đã có trên ${asset.asset_code}`);
+    return;
+  }
+  const bytes = Buffer.from('%PDF-1.4\n% EH-AM seed sample document\n', 'utf8');
+  const up = await db.storage
+    .from('asset-documents')
+    .upload(path, bytes, { contentType: 'application/pdf', upsert: true });
+  if (up.error) {
+    console.warn(`• Không upload được chứng từ mẫu: ${up.error.message}`);
+    return;
+  }
+  const { error } = await db.rpc('attach_asset_document', {
+    p_asset_id: asset.id,
+    p_doc_type: 'HANDOVER',
+    p_file_name: 'bien-ban-ban-giao-mau.pdf',
+    p_storage_path: path,
+    p_content_type: 'application/pdf',
+    p_size_bytes: bytes.length,
+    p_actor_id: actor.id,
+    p_actor_label: actor.display_name,
+    p_request_id: `seed-m03-${randomUUID()}`,
+    p_ip: null,
+    p_user_agent: 'tools/seed-m03-assets.mjs',
+  });
+  if (error && !/duplicate|23505/i.test(error.message ?? '')) {
+    console.warn(`• Không gắn được chứng từ mẫu: ${error.message}`);
+    return;
+  }
+  console.log(`✓ Chứng từ mẫu (HANDOVER) gắn vào ${asset.asset_code}`);
+}
+
 async function main() {
   const [{ data: profiles, error: profileError }, assignments] = await Promise.all([
     db.from('user_profiles').select('id,display_name,status').eq('status', 'ACTIVE').order('created_at'),
@@ -228,6 +276,7 @@ async function main() {
     created += 1;
     console.log(`✓ Tạo ${data.asset_code} · ${type.name} · ${location.name}`);
   }
+  await ensureSampleDocument(actor);
   const { count } = await db.from('assets').select('*', { count: 'exact', head: true });
   console.log(`✓ Seed M03 hoàn tất: tạo ${created}, tái sử dụng ${reused}, tổng assets=${count ?? 0}.`);
 }

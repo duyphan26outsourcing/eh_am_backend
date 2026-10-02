@@ -86,6 +86,9 @@ export const ErrorCode = {
   ASSET_SERIAL_REQUIRED: 'ASSET_SERIAL_REQUIRED',
   ASSET_READ_ONLY: 'ASSET_READ_ONLY',
   ASSET_STATUS_LOCKED: 'ASSET_STATUS_LOCKED',
+  FILE_STORAGE_ERROR: 'FILE_STORAGE_ERROR',
+  FILE_TYPE_NOT_ALLOWED: 'FILE_TYPE_NOT_ALLOWED',
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
   CANCELLATION_PENDING_EXISTS: 'CANCELLATION_PENDING_EXISTS',
   NO_APPROVER_AVAILABLE: 'NO_APPROVER_AVAILABLE',
   CANCELLATION_ALREADY_DECIDED: 'CANCELLATION_ALREADY_DECIDED',
@@ -412,6 +415,27 @@ export const ERROR_DEFINITIONS = {
     messages: {
       vi: 'Trạng thái hiện tại của tài sản không cho đổi tay giữa Lưu kho và Đang sử dụng.',
       en: 'The asset is in a state that cannot be toggled between in-storage and in-use.',
+    },
+  },
+  FILE_STORAGE_ERROR: {
+    status: HttpStatus.BAD_GATEWAY,
+    messages: {
+      vi: 'Không truy cập được kho tệp. Vui lòng thử lại.',
+      en: 'Could not reach the file storage. Please try again.',
+    },
+  },
+  FILE_TYPE_NOT_ALLOWED: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Định dạng tệp không được hỗ trợ. Chỉ nhận PDF, JPG, PNG, WEBP.',
+      en: 'This file type is not supported. Only PDF, JPG, PNG, WEBP are allowed.',
+    },
+  },
+  FILE_TOO_LARGE: {
+    status: HttpStatus.BAD_REQUEST,
+    messages: {
+      vi: 'Tệp vượt quá dung lượng tối đa 10MB.',
+      en: 'The file exceeds the 10MB maximum size.',
     },
   },
   CANCELLATION_PENDING_EXISTS: {

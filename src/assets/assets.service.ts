@@ -123,7 +123,20 @@ export class AssetsService {
 
     const timeline = await this.repository.listTimeline(assetId);
     const refNames = await this.repository.resolveAuditReferenceNames(timeline);
-    return toAssetDetailModel(row, timeline, scope.allLocations, refNames);
+    // BR-CMN-06: hoá đơn/PO chỉ hiện với vai trò xem tài chính (= phạm vi platform ở đây).
+    const allDocuments = await this.repository.listDocuments(assetId);
+    const documents = scope.allLocations
+      ? allDocuments
+      : allDocuments.filter(
+          (doc) => doc.docType !== 'INVOICE' && doc.docType !== 'PO',
+        );
+    return toAssetDetailModel(
+      row,
+      timeline,
+      scope.allLocations,
+      refNames,
+      documents,
+    );
   }
 
   async create(

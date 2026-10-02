@@ -48,6 +48,7 @@ export const SupabaseTable = {
   ASSETS: 'assets',
   ASSET_COMMAND_RECEIPTS: 'asset_command_receipts',
   ASSET_CANCELLATION_REQUESTS: 'asset_cancellation_requests',
+  ASSET_DOCUMENTS: 'asset_documents',
 } as const satisfies Record<string, PublicTableName>;
 
 // ---------------------------------------------------------------------------

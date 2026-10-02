@@ -4,8 +4,11 @@ import { SupabaseJwtModule } from '@/auth/supabase-jwt/supabase-jwt.module';
 import { AssetsController } from './assets.controller';
 import { AssetsDirectoryController } from './assets-directory.controller';
 import { AssetCancellationsController } from './assets-cancellations.controller';
+import { AssetDocumentsController } from './assets-documents.controller';
 import { AssetsRepository } from './assets.repository';
 import { AssetsService } from './assets.service';
+import { AssetStorageService } from './asset-storage.service';
+import { AssetDocumentsService } from './asset-documents.service';
 
 @Module({
   imports: [SupabaseModule, SupabaseJwtModule],
@@ -13,7 +16,13 @@ import { AssetsService } from './assets.service';
     AssetsController,
     AssetsDirectoryController,
     AssetCancellationsController,
+    AssetDocumentsController,
   ],
-  providers: [AssetsRepository, AssetsService],
+  providers: [
+    AssetsRepository,
+    AssetsService,
+    AssetStorageService,
+    AssetDocumentsService,
+  ],
 })
 export class AssetsModule {}

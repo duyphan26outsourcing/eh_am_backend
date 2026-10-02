@@ -107,6 +107,74 @@ export function toChangedAssetResponsibleModel(
   };
 }
 
+// ===== UC-AST-06: chứng từ tài sản =====
+
+/** Dòng bảng `asset_documents`. */
+export interface AssetDocumentRow {
+  id: string;
+  asset_id: string;
+  doc_type: string;
+  file_name: string;
+  storage_path: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_by: string;
+  uploaded_at: string;
+}
+
+/** Bản hiển thị cho danh sách chứng từ ở chi tiết — KHÔNG phơi storage_path / signed URL. */
+export interface AssetDocumentModel {
+  id: string;
+  docType: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedByName: string | null;
+  uploadedAt: string;
+}
+
+export function toAssetDocumentModel(
+  row: AssetDocumentRow,
+  uploadedByName: string | null,
+): AssetDocumentModel {
+  return {
+    id: row.id,
+    docType: row.doc_type,
+    fileName: row.file_name,
+    contentType: row.content_type,
+    sizeBytes: row.size_bytes,
+    uploadedByName,
+    uploadedAt: row.uploaded_at,
+  };
+}
+
+/** jsonb RPC `attach_asset_document` trả về. */
+export interface AttachedDocumentRow {
+  id: string;
+  doc_type: string;
+  file_name: string;
+  uploaded_at: string;
+  is_replay?: boolean;
+}
+
+export interface AttachedDocumentModel {
+  id: string;
+  docType: string;
+  fileName: string;
+  uploadedAt: string;
+}
+
+export function toAttachedDocumentModel(
+  row: AttachedDocumentRow,
+): AttachedDocumentModel {
+  return {
+    id: row.id,
+    docType: row.doc_type,
+    fileName: row.file_name,
+    uploadedAt: row.uploaded_at,
+  };
+}
+
 // ===== UC-AST-09/10: huỷ hồ sơ tạo sai =====
 
 /** jsonb RPC `request_asset_cancellation` trả về. */
@@ -462,7 +530,7 @@ export interface AssetDetailModel {
     employeeCode: string | null;
   } | null;
   financial: { invoiceNo: string | null } | null;
-  documents: [];
+  documents: AssetDocumentModel[];
   timeline: Array<{
     id: number;
     eventCode: string;
@@ -552,6 +620,7 @@ export function toAssetDetailModel(
   timeline: readonly AssetTimelineRow[],
   canViewFinancial: boolean,
   refNames: Record<string, string> = {},
+  documents: AssetDocumentModel[] = [],
 ): AssetDetailModel {
   return {
     id: row.id,
@@ -584,7 +653,7 @@ export function toAssetDetailModel(
         }
       : null,
     financial: canViewFinancial ? { invoiceNo: row.invoice_no } : null,
-    documents: [],
+    documents,
     timeline: timeline.map((event) => ({
       id: event.id,
       eventCode: event.event_code,

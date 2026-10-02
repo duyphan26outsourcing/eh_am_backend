@@ -218,6 +218,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      asset_documents: {
+        Row: {
+          asset_id: string;
+          content_type: string;
+          created_at: string;
+          doc_type: string;
+          file_name: string;
+          id: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_at: string;
+          uploaded_by: string;
+        };
+        Insert: {
+          asset_id: string;
+          content_type: string;
+          created_at?: string;
+          doc_type: string;
+          file_name: string;
+          id?: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_at?: string;
+          uploaded_by: string;
+        };
+        Update: {
+          asset_id?: string;
+          content_type?: string;
+          created_at?: string;
+          doc_type?: string;
+          file_name?: string;
+          id?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          uploaded_at?: string;
+          uploaded_by?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'asset_documents_asset_id_fkey';
+            columns: ['asset_id'];
+            isOneToOne: false;
+            referencedRelation: 'assets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asset_documents_uploaded_by_fkey';
+            columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'user_profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       asset_types: {
         Row: {
           asset_kind: string | null;
@@ -1316,6 +1370,22 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      attach_asset_document: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_asset_id: string;
+          p_content_type: string;
+          p_doc_type: string;
+          p_file_name: string;
+          p_ip: unknown;
+          p_request_id: string;
+          p_size_bytes: number;
+          p_storage_path: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       change_asset_responsible: {
         Args: {
           p_actor_id: string;
